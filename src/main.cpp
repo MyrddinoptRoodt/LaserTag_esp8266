@@ -6,6 +6,8 @@
 #include <IRtext.h>
 #include <IRutils.h>
 #include <assert.h>
+#include <string>
+#include <iostream>
 #define KORT 393
 #define LANG 786 // gemiddelde van veel dingen
 const uint32_t kBaudRate = 115200;
@@ -30,33 +32,33 @@ uint16_t rawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393,
 //uint16_t rawData[] =   { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,786 ,786  ,393  , 5600};
 // Example Samsung A/C state captured from IRrecvDumpV2.ino
 // Example Samsung A/C state captured from IRrecvDumpV2.ino
-String BlueGunx1    = "00000001 00000001 00000110";
-String BlueGunx2    = "00000001 00000010 00000111";
-String BlueGunx3    = "00000001 00000011 00001000";
-String RedGunx1     = "00000010 00000001 00000111";
-String RedGunx2     = "00000010 00000010 00001000";
-String RedGunx3     = "00000010 00000011 00001001";
-String GreenGunx1   = "00000011 00000001 00001000";
-String GreenGunx2   = "00000011 00000010 00001001";
-String GreenGunx3   = "00000011 00000011 00001011";
-String WhiteGunx1   = "00000100 00000001 00001001";
-String WhiteGunx2   = "00000100 00000010 00001011";
-String WhiteGunx3   = "00000100 00000011 00001100";
-String FFAGUN       = "00000101 00000001 00001100";
+std::string BlueGunx1    = "00000001 00000001 00000110";
+std::string BlueGunx2    = "00000001 00000010 00000111";
+std::string BlueGunx3    = "00000001 00000011 00001000";
+std::string RedGunx1     = "00000010 00000001 00000111";
+std::string RedGunx2     = "00000010 00000010 00001000";
+std::string RedGunx3     = "00000010 00000011 00001001";
+std::string GreenGunx1   = "00000011 00000001 00001000";
+std::string GreenGunx2   = "00000011 00000010 00001001";
+std::string GreenGunx3   = "00000011 00000011 00001011";
+std::string WhiteGunx1   = "00000100 00000001 00001001";
+std::string WhiteGunx2   = "00000100 00000010 00001011";
+std::string WhiteGunx3   = "00000100 00000011 00001100";
+std::string FFAGUN       = "00000101 00000001 00001100";
 
-String Blue   =   "001";
-String Red    =   "010";
-String Green  =   "011";
-String White  =   "100";
-String FFA    =   "101";
-String eigenteam = "101";
+std::string Blue   =   "001";
+std::string Red    =   "010";
+std::string Green  =   "011";
+std::string White  =   "100";
+std::string FFA    =   "101";
+std::string eigenteam = "101";
 int teams = 0;
-String gun = FFAGUN;
+std::string gun = FFAGUN;
 int guns = 100;
 
-String Damagex1   = "01";
-String Damagex2   = "10";
-String Damagex3   = "11";
+std::string Damagex1   = "01";
+std::string Damagex2   = "10";
+std::string Damagex3   = "11";
 int buzzer = 15;  //  pin D8
 int ChangeTeams_Button = 12;
 int button_Shoot = 5;    // pushbutton connected to digital pin D0
@@ -140,8 +142,8 @@ void ChangeTeams(){
 
 }
 
-void prepare_shot(String shot){
-  String list = "01";
+void prepare_shot(std::string shot){
+  std::string list = "01";
   int(i) = 0;
   int(array_place) = 17;
   while (i < shot.length())
@@ -167,20 +169,20 @@ void prepare_shot(String shot){
 
 
 
-void get_damage(String temp){
-  String temp2 = "";
-  temp2 = temp[15] + temp[16] + temp[17];
-  if (temp2 = Damagex1)
+void get_damage(std::string temp){
+  std::string temp2 = "";
+  temp2.append(temp.substr(15,2));
+  if (temp2 == Damagex1)
   {
     Health --;
     buzzerfun(1);
   }
-  if (temp2 = Damagex2)
+  if (temp2 == Damagex2)
   {
     Health -= 2;
     buzzerfun(2);
   }
-  if (temp2 = Damagex3)
+  if (temp2 == Damagex3)
   {
     Health -= 3;
     buzzerfun(3);
@@ -193,39 +195,37 @@ void get_damage(String temp){
 }
 
 void decodeData(uint16_t * Datass){
-  String binairy_code = "";
+  std::string binairy_code = "";
   int(i) = 17;
   int(iteration) = 1;
   while (i<41)
   {
-   String bin_old = binairy_code;
    uint16_t value = Datass[i];
    if (value > 600)
    {
-     binairy_code = bin_old + "1";
+     binairy_code.append("1");
    }
    else {
-     binairy_code = bin_old + "0";
+     binairy_code.append("0");
    }
    if ((iteration%8 == 0)){
-     String bin_old = binairy_code;
-     binairy_code = bin_old + " ";
+     binairy_code.append(" ");
    }
    iteration++;
    i++;
   }
-  Serial.println("code: " + binairy_code);
+  Serial.println("code: ");
   bool b = true; 
   while (b)
   {
-    String temp = "";
-    temp = binairy_code[5] + binairy_code[6] + binairy_code[7];
-    if (((temp = Blue) or (temp = Red) or (temp = Green) or (temp = White)) and (temp != eigenteam)) 
+    std::string temp = "";
+    temp.append(binairy_code.substr(5,3));
+    if ((temp != eigenteam) and (temp != FFA))
     {
       get_damage(binairy_code);
       b = false;
     }
-    else if ((temp = FFA) and (eigenteam = FFA))
+    else if ((temp == FFA) and (eigenteam == FFA))
     {
       get_damage(binairy_code);
       b = false;
@@ -344,17 +344,17 @@ void loop() {
   {
     if (digitalRead(button_Shoot) == HIGH)
     {
-      prepare_shot(gun);
+      //prepare_shot(gun);
     }
     if (digitalRead(ChangeTeams_Button) == HIGH)
     {
-      ChangeTeams();
+      //ChangeTeams();
     }
-    if ((digitalRead(ChangeTeams_Button) == HIGH)and (eigenteam = FFA))
+    /*if ((digitalRead(ChangeTeams_Button) == HIGH) and (eigenteam == FFA))
     {
-      changeGuns();
+      //changeGuns();
     }    
-    
+    */
     
     if (irrecv.decode(&results)) {
    
@@ -366,8 +366,9 @@ void loop() {
       decodeData(Datass);
       yield();             // Feed the WDT (again)
       //String hit = resultToTimingInfo(&results);
+    delay(200);
     }
-    delay(2000);
+    
   }
   delay(2000);
 }
