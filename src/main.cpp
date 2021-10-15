@@ -1,166 +1,373 @@
 #include <Arduino.h>
-#include <IRremote.h>
-#define DECODE_NEC          // Includes Apple and Onkyo
-#define DECODE_DISTANCE
+#include <IRremoteESP8266.h>
+#include <IRsend.h>
+#include <IRrecv.h>
+#include <IRac.h>
+#include <IRtext.h>
+#include <IRutils.h>
+#include <assert.h>
+#define KORT 393
+#define LANG 786 // gemiddelde van veel dingen
+const uint32_t kBaudRate = 115200;
+const uint16_t kCaptureBufferSize = 1024;
 
-//defining gun types
-uint32_t gunBlue1X = 0x5AA7A3A5
-;
-//defining teams
+const uint8_t kTimeout = 50;
+const uint16_t kMinUnknownSize = 12;
 
-uint16_t TeamFFA =      0x0105;
+const uint8_t kTolerancePercentage = kTolerance;  // kTolerance is normally 25%
 
-
-uint16_t Team = TeamFFA; //defauld team
+const uint16_t kIrLed = 4;  // ESP8266 GPIO pin to use. Recommended: 4 (D2).
+const uint16_t kRecvPin = 14;
 
 
-int TeamIndex = 0;
-int GunIndex = 0;
+IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, true);
+decode_results results;  // Somewhere to store the results
 
-#define DELAY_AFTER_SEND 2000
-#define DELAY_AFTER_LOOP 5000
+IRsend irsend(kIrLed);  // Set the GPIO to be used to sending the message.
+
+// Example of data captured by IRrecvDumpV2.ino
+uint16_t rawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4    ,5    ,6    ,7    ,8    ,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24, 5600};
+//uint16_t rawData[] =   { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,786 ,786  ,393  , 5600};
+// Example Samsung A/C state captured from IRrecvDumpV2.ino
+// Example Samsung A/C state captured from IRrecvDumpV2.ino
+String BlueGunx1    = "00000001 00000001 00000110";
+String BlueGunx2    = "00000001 00000010 00000111";
+String BlueGunx3    = "00000001 00000011 00001000";
+String RedGunx1     = "00000010 00000001 00000111";
+String RedGunx2     = "00000010 00000010 00001000";
+String RedGunx3     = "00000010 00000011 00001001";
+String GreenGunx1   = "00000011 00000001 00001000";
+String GreenGunx2   = "00000011 00000010 00001001";
+String GreenGunx3   = "00000011 00000011 00001011";
+String WhiteGunx1   = "00000100 00000001 00001001";
+String WhiteGunx2   = "00000100 00000010 00001011";
+String WhiteGunx3   = "00000100 00000011 00001100";
+String FFAGUN       = "00000101 00000001 00001100";
+
+String Blue   =   "001";
+String Red    =   "010";
+String Green  =   "011";
+String White  =   "100";
+String FFA    =   "101";
+String eigenteam = "101";
+int teams = 0;
+String gun = FFAGUN;
+int guns = 100;
+
+String Damagex1   = "01";
+String Damagex2   = "10";
+String Damagex3   = "11";
 int buzzer = 15;  //  pin D8
 int ChangeTeams_Button = 12;
 int button_Shoot = 5;    // pushbutton connected to digital pin D0
 int val = 0;      // variable to store the read value
 int ChangeGuns_Button = 16;
+
+int Health = 9;
+
+
 void setup() {
-  // put your setup code here, to run once:
   pinMode(buzzer, OUTPUT);  // sets the digital pin 13 as output
   pinMode(button_Shoot, INPUT);    // sets the digital pin 7 as input
   pinMode(ChangeGuns_Button,INPUT);
-  Serial.begin(9600);
-  IrReceiver.begin(14);
-  IrSender.begin(4, ENABLE_LED_FEEDBACK); // Specify send pin and enable feedback LED at default feedback LED pin
-  
+  irsend.begin();
+  Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
+  assert(irutils::lowLevelSanityCheck() == 0);
 
+  Serial.printf("\n" D_STR_IRRECVDUMP_STARTUP "\n", kRecvPin);
+#if DECODE_HASH
+  // Ignore messages with less than minimum on or off pulses.
+  irrecv.setUnknownThreshold(kMinUnknownSize);
+#endif  // DECODE_HASH
+  irrecv.setTolerance(kTolerancePercentage);  // Override the default tolerance.
+  irrecv.enableIRIn();  // Start the receiver
 }
-void ChangeGuns(){
-  GunIndex ++;
-  if (GunIndex == 4){
-    GunIndex = 0;
+void buzzerfun(int repeat){
+  int i = 0;
+  while (i < repeat)
+  {
+    digitalWrite(buzzer, LOW);
+    delay(5);
+    digitalWrite(buzzer, HIGH);
+    delay(5);
+    digitalWrite(buzzer, LOW);
+    delay(5);
+    digitalWrite(buzzer, HIGH);
+    i++;
   }
-  //GunType = UsableGuns[GunIndex];
   
-
 }
 void ChangeTeams(){
-  TeamIndex ++;
-  if (TeamIndex == 5){
-    TeamIndex = 0;
+  teams ++;
+  if (teams == 5){
+    teams = 0;
+  }
+  switch (teams)
+  {
+  case 0:
+    eigenteam = FFA;
+    gun = FFAGUN;
+    guns = 100; 
+    break;
+  case 1:
+    eigenteam = Blue;
+    gun = BlueGunx1;
+    guns = 10;
+    break;
+  case 2:
+    eigenteam = Red;
+    gun = RedGunx1;
+    guns = 20;
+    break;
+  case 3:
+    eigenteam = Green;
+    gun = GreenGunx1;
+    guns = 30;
+    break;
+  case 4:
+    eigenteam = White;
+    gun = WhiteGunx1;
+    guns = 40;
+    break;
+  default:
+    eigenteam = FFA;
+    gun = FFAGUN;
+    guns = 100;
+    break;
   }
   //Team = UsableTeams[TeamIndex];
   
 
 }
 
-uint16_t sAddress = 0x0102;
-uint8_t sCommand = 0x34;
-uint8_t sRepeats = 1;
-uint32_t testdata = 0x11010001;
-uint32_t data = 0x0;
-void send_ir_data() {
-    Serial.print(F("Sending: 0x"));
-    Serial.print(sAddress, HEX);
-    Serial.print(sCommand, HEX);
-    Serial.println(sRepeats, HEX);
-    //IrSender.sendNECRaw(data,1);
-    Serial.print(testdata);
-
-    // clip repeats at 4
-    if (sRepeats > 4) {
-        sRepeats = 4;
+void prepare_shot(String shot){
+  String list = "01";
+  int(i) = 0;
+  int(array_place) = 17;
+  while (i < shot.length())
+  {
+    if (shot[i] == list[1]){
+      rawData[array_place] = 786;
+      array_place++;
     }
-    // Results for the first loop to: Protocol=NEC Address=0x102 Command=0x34 Raw-Data=0xCB340102 (32 bits)
-    IrSender.sendNECRaw(gunBlue1X,1);//sAddress, sCommand, sRepeats);
-    IrSender.sendNECMSB(gunBlue1X,32);
-    //IrSender.sendNEC(,testdata,1);  
-}
-
-void receive_ir_data() {
-    if (IrReceiver.decode()) {
-        Serial.print(F("Decoded protocol: "));
-        Serial.print(getProtocolString(IrReceiver.decodedIRData.protocol));
-        Serial.print(F("Decoded raw data: "));
-        Serial.print(IrReceiver.decodedIRData.decodedRawData, HEX);
-        //uint32_t Tempdata = IrReceiver.decodedIRData.decodedRawData;
-        Serial.print(F(", decoded address: "));
-        Serial.print(IrReceiver.decodedIRData.address, HEX);
-        Serial.print(F(", decoded command: "));
-        //uint16_t TempAddress =IrReceiver.decodedIRData.address;
-        Serial.println(IrReceiver.decodedIRData.command, HEX);
-        uint32_t data = IrReceiver.decodedIRData.decodedRawData;
-        IrReceiver.resume();
-        
-
-    }
-    if (IrReceiver.decodeNEC()) {
-        Serial.print(F("Decoded protocol: "));
-        Serial.print(getProtocolString(IrReceiver.decodedIRData.protocol));
-        Serial.print(F("Decoded raw data: "));
-        Serial.print(IrReceiver.decodedIRData.decodedRawData, HEX);
-        //uint32_t data = IrReceiver.decodedIRData.decodedRawData;
-        Serial.print(F(", decoded address: "));
-        Serial.print(IrReceiver.decodedIRData.address, HEX);
-        Serial.print(F(", decoded command: "));
-        Serial.println(IrReceiver.decodedIRData.command, HEX);
-        uint32_t data = IrReceiver.decodedIRData.decodedRawData;
-        IrReceiver.resume();
-        
+    if (shot[i] == list[0])
+    {
+      rawData[array_place] = 393;
+      array_place++;
       
     }
-    
-    
+    i++;
+  }
+  irsend.sendRaw(rawData,42,38);
+
+  
+
 }
-void buzzerfun(){
-   digitalWrite(buzzer, LOW);
-   delay(5);
-   digitalWrite(buzzer, HIGH);
-   delay(5);
-   digitalWrite(buzzer, LOW);
-   delay(5);
-   digitalWrite(buzzer, HIGH);
+
+
+
+
+void get_damage(String temp){
+  String temp2 = "";
+  temp2 = temp[15] + temp[16] + temp[17];
+  if (temp2 = Damagex1)
+  {
+    Health --;
+    buzzerfun(1);
+  }
+  if (temp2 = Damagex2)
+  {
+    Health -= 2;
+    buzzerfun(2);
+  }
+  if (temp2 = Damagex3)
+  {
+    Health -= 3;
+    buzzerfun(3);
+  }
+  if (Health < 1)
+  {
+    Serial.println("Dead");
+    buzzerfun(5);
+  } 
 }
+
+void decodeData(uint16_t * Datass){
+  String binairy_code = "";
+  int(i) = 17;
+  int(iteration) = 1;
+  while (i<41)
+  {
+   String bin_old = binairy_code;
+   uint16_t value = Datass[i];
+   if (value > 600)
+   {
+     binairy_code = bin_old + "1";
+   }
+   else {
+     binairy_code = bin_old + "0";
+   }
+   if ((iteration%8 == 0)){
+     String bin_old = binairy_code;
+     binairy_code = bin_old + " ";
+   }
+   iteration++;
+   i++;
+  }
+  Serial.println("code: " + binairy_code);
+  bool b = true; 
+  while (b)
+  {
+    String temp = "";
+    temp = binairy_code[5] + binairy_code[6] + binairy_code[7];
+    if (((temp = Blue) or (temp = Red) or (temp = Green) or (temp = White)) and (temp != eigenteam)) 
+    {
+      get_damage(binairy_code);
+      b = false;
+    }
+    else if ((temp = FFA) and (eigenteam = FFA))
+    {
+      get_damage(binairy_code);
+      b = false;
+    }
+    else {
+      b = false;
+    }
+  }
+  
+}
+void changeGuns (){
+  guns ++;
+  switch (teams)
+  {
+  case 0:
+    gun = FFAGUN;
+    break;
+  case 1:
+    switch (guns)
+    {
+    case 11:
+      gun = BlueGunx2;
+      break;
+    case 12:
+      gun = BlueGunx3;
+      break;
+    case 13:
+      gun = BlueGunx1;
+      guns = 10;
+      break;
+
+    default:
+      guns = 10;
+      gun = BlueGunx1;
+      teams = 1;
+      eigenteam = Blue;
+      break;
+    }
+    break;
+  case 2:
+    switch (guns)
+    {
+    case 21:
+      gun = BlueGunx2;
+      break;
+    case 22:
+      gun = BlueGunx3;
+      break;
+    case 23:
+      gun = BlueGunx1;
+      guns = 10;
+      break;
+
+    default:
+      guns = 20;
+      gun = RedGunx1;
+      teams = 2;
+      eigenteam = Red;
+      break;
+    }
+    break;
+  case 3:
+    switch (guns)
+    {
+    case 31:
+      gun = GreenGunx2;
+      break;
+    case 32:
+      gun = GreenGunx3;
+      break;
+    case 33:
+      gun = GreenGunx1;
+      guns = 30;
+      break;
+
+    default:
+      guns = 30;
+      gun = GreenGunx1;
+      teams = 3;
+      eigenteam = Green;
+      break;
+    }
+    break;
+  case 4:
+    switch (guns)
+    {
+    case 41:
+      gun = WhiteGunx2;
+      break;
+    case 42:
+      gun = WhiteGunx3;
+      break;
+    case 43:
+      gun = WhiteGunx1;
+      guns = 40;
+      break;
+
+    default:
+      guns = 40;
+      gun = WhiteGunx1;
+      teams = 4;
+      eigenteam = White;
+      break;
+    }
+    break;
+          
+  default:
+    break;
+  }
+  
+}
+
 
 void loop() {
-  while (true)
+  while (Health > 1)
   {
-    
-    val = digitalRead(button_Shoot);   // read the input pin
-    //Serial.println(analogRead(analogInPin));
-    while( digitalRead(button_Shoot) == HIGH)
+    if (digitalRead(button_Shoot) == HIGH)
     {
-      buzzerfun();
-      val = digitalRead(button_Shoot);
-
-
-      Serial.println();
-      Serial.print(F("address=0x"));
-      Serial.print(sAddress, HEX);
-      Serial.print(F(" command=0x"));
-      Serial.print(sCommand, HEX);
-      Serial.print(F(" repeats="));
-      Serial.println(sRepeats);
-      Serial.flush();
-
-      send_ir_data();
-      // wait for the receiver state machine to detect the end of a protocol
-      delay((RECORD_GAP_MICROS / 1000) + 5);
-      sAddress += 0x0101;
-      sCommand += 0x11;
-      sRepeats++;
-      delay(200);
-
-    }/* code */
-    receive_ir_data();
-    if (digitalRead(ChangeGuns_Button) == HIGH){
-      ChangeGuns();
+      prepare_shot(gun);
     }
-    if (digitalRead(ChangeTeams_Button) == HIGH){
+    if (digitalRead(ChangeTeams_Button) == HIGH)
+    {
       ChangeTeams();
     }
-    delay(200);
+    if ((digitalRead(ChangeTeams_Button) == HIGH)and (eigenteam = FFA))
+    {
+      changeGuns();
+    }    
+    
+    
+    if (irrecv.decode(&results)) {
+   
+      uint32_t now = millis();
+   
+      Serial.println(resultToSourceCode(&results));
+      Serial.println();
+      uint16_t * Datass = resultToRawArray(&results);    // Blank line between entries
+      decodeData(Datass);
+      yield();             // Feed the WDT (again)
+      //String hit = resultToTimingInfo(&results);
+    }
+    delay(2000);
   }
-    // sets the LED to the button's value
-  // put your main code here, to run repeatedly:
+  delay(2000);
 }
