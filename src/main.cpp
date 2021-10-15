@@ -58,10 +58,10 @@ String Damagex1   = "01";
 String Damagex2   = "10";
 String Damagex3   = "11";
 int buzzer = 15;  //  pin D8
-int ChangeTeams_Button = 12;
+int ChangeTeams_Button = 12; //d6
 int button_Shoot = 5;    // pushbutton connected to digital pin D0
 int val = 0;      // variable to store the read value
-int ChangeGuns_Button = 16;
+int ChangeGuns_Button = 16;//d0
 
 int Health = 9;
 
@@ -97,44 +97,55 @@ void buzzerfun(int repeat){
   }
   
 }
-void ChangeTeams(){
+String ChangeTeams(int teams){
   teams ++;
   if (teams == 5){
     teams = 0;
+    gun.clear();
+    eigenteam.clear();
   }
+  String temp = "";
   switch (teams)
   {
-  case 0:
-    eigenteam = FFA;
-    gun = FFAGUN;
-    guns = 100; 
-    break;
-  case 1:
-    eigenteam = Blue;
-    gun = BlueGunx1;
-    guns = 10;
-    break;
-  case 2:
-    eigenteam = Red;
-    gun = RedGunx1;
-    guns = 20;
-    break;
-  case 3:
-    eigenteam = Green;
-    gun = GreenGunx1;
-    guns = 30;
-    break;
-  case 4:
-    eigenteam = White;
-    gun = WhiteGunx1;
-    guns = 40;
-    break;
-  default:
-    eigenteam = FFA;
-    gun = FFAGUN;
-    guns = 100;
-    break;
-  }
+    case 0:
+      eigenteam = FFA;
+      gun = FFAGUN;
+      guns = 100;
+      temp = eigenteam + gun;
+      break;
+    case 1:
+      eigenteam = Blue;
+      gun = BlueGunx1;
+      guns = 10;
+      temp = eigenteam + gun;
+      break;
+    case 2:
+      eigenteam = Red;
+      gun = RedGunx1;
+      guns = 20;
+      temp = eigenteam + gun;
+      break;
+    case 3:
+      eigenteam = Green;
+      gun = GreenGunx1;
+      guns = 30;
+      temp = eigenteam + gun;
+      break;
+    case 4:
+      eigenteam = White;
+      gun = WhiteGunx1;
+      guns = 40;
+      temp = eigenteam + gun;
+      break;
+    default:
+      eigenteam = FFA;
+      gun = FFAGUN;
+      guns = 100;
+      temp = eigenteam + gun;
+      break;
+    }
+    return temp;
+      
   //Team = UsableTeams[TeamIndex];
   
 
@@ -144,20 +155,25 @@ void prepare_shot(String shot){
   String list = "01";
   int(i) = 0;
   int(array_place) = 17;
+  String temp = "";
   while (i < shot.length())
   {
-    if (shot[i] == list[1]){
+    if (shot.charAt(i) == list[1]){
       rawData[array_place] = 786;
       array_place++;
+      temp = temp + 786;
     }
-    if (shot[i] == list[0])
+    if (shot.charAt(i) == list[0])
     {
       rawData[array_place] = 393;
       array_place++;
+      temp = temp + 786;
       
     }
     i++;
   }
+  
+  Serial.println("Shoot: " + temp );
   irsend.sendRaw(rawData,42,38);
 
   
@@ -168,19 +184,17 @@ void prepare_shot(String shot){
 
 
 void get_damage(String temp){
-  String temp2 = "";
-  temp2 = temp[15] + temp[16] + temp[17];
-  if (temp2 = Damagex1)
+  if (temp == Damagex1)
   {
     Health --;
     buzzerfun(1);
   }
-  if (temp2 = Damagex2)
+  if (temp == Damagex2)
   {
     Health -= 2;
     buzzerfun(2);
   }
-  if (temp2 = Damagex3)
+  if (temp == Damagex3)
   {
     Health -= 3;
     buzzerfun(3);
@@ -190,6 +204,8 @@ void get_damage(String temp){
     Serial.println("Dead");
     buzzerfun(5);
   } 
+  Serial.println(Health);
+  Serial.println(temp);
 }
 
 void decodeData(uint16_t * Datass){
@@ -215,19 +231,24 @@ void decodeData(uint16_t * Datass){
    i++;
   }
   Serial.println("code: " + binairy_code);
+  Serial.println("code damage: " + binairy_code.substring(15,17));
   bool b = true; 
   while (b)
   {
-    String temp = "";
-    temp = binairy_code[5] + binairy_code[6] + binairy_code[7];
-    if (((temp = Blue) or (temp = Red) or (temp = Green) or (temp = White)) and (temp != eigenteam)) 
+    
+    String temp = binairy_code.substring(5,8);
+    String damage = binairy_code.substring(15,17);
+    Serial.println(damage);
+    Serial.println(temp);
+    if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam))
+    // if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam) and (eigenteam != FFA)) 
     {
-      get_damage(binairy_code);
+      get_damage(binairy_code.substring(15,17));
       b = false;
     }
-    else if ((temp = FFA) and (eigenteam = FFA))
+    else if ((temp == FFA) and (eigenteam == FFA))
     {
-      get_damage(binairy_code);
+      get_damage(binairy_code.substring(5,17));
       b = false;
     }
     else {
@@ -241,6 +262,7 @@ void changeGuns (){
   switch (teams)
   {
   case 0:
+    gun.clear();
     gun = FFAGUN;
     break;
   case 1:
@@ -348,9 +370,21 @@ void loop() {
     }
     if (digitalRead(ChangeTeams_Button) == HIGH)
     {
-      ChangeTeams();
+      Serial.println("change team");
+      String tijdelijk = ChangeTeams(teams);
+      teams ++;
+      if (teams > 4)
+      {
+        teams = 0;
+      }
+      eigenteam = tijdelijk.substring(0,3);
+      gun = tijdelijk.substring(3,tijdelijk.length());
+      Serial.println("gun: " + gun);
+      Serial.println("team: " + eigenteam);
+      
+      
     }
-    if ((digitalRead(ChangeTeams_Button) == HIGH)and (eigenteam = FFA))
+    if ((digitalRead(ChangeGuns_Button) == HIGH)and (eigenteam = FFA))
     {
       changeGuns();
     }    
@@ -367,7 +401,8 @@ void loop() {
       yield();             // Feed the WDT (again)
       //String hit = resultToTimingInfo(&results);
     }
-    delay(2000);
+    delay(200);
   }
-  delay(2000);
+  delay(200);
+  Serial.println("u dead m8");
 }
