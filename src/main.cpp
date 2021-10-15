@@ -4,35 +4,18 @@
 #define DECODE_DISTANCE
 
 //defining gun types
-uint32_t Gun1Damage =   0x10010001;
-uint32_t Gun2Damage =   0x10010011;
-uint32_t Gun3Damage =   0x10010111;
-uint32_t Gun4Damage =   0x10011111;
-//these guns require extra's
-uint32_t TurretDamage = 0x11010001;
-uint32_t Airstrike =    0x10011001;
-uint32_t Grenade =      0x10011101;
-
-uint32_t GunType = Gun1Damage; //defauld Gun
-
+uint32_t gunBlue1X = 0x5AA7A3A5
+;
 //defining teams
-uint16_t TeamBlauw =    0x0101;
-uint16_t TeamGroen =    0x0102;
-uint16_t TeamRood =     0x0103;
-uint16_t TeamGeel =     0x0104;
+
 uint16_t TeamFFA =      0x0105;
-uint16_t TeamNPC =      0x0106;
+
 
 uint16_t Team = TeamFFA; //defauld team
 
 
 int TeamIndex = 0;
 int GunIndex = 0;
-
-uint16_t Teams        [6] = {TeamFFA,        TeamRood,       TeamGeel,       TeamGroen,      TeamBlauw,      TeamNPC}; //array for ALL teams 
-uint16_t UsableTeams  [5] = {TeamFFA,        TeamRood,       TeamGeel,       TeamGroen,      TeamBlauw}; //array for usable teams
-uint32_t Guns         [7] = {Gun1Damage,     Gun2Damage,     Gun3Damage,     Gun4Damage,     TurretDamage,   Airstrike,      Grenade}; //array for ALL guns
-uint32_t UsableGuns   [4] = {Gun1Damage,     Gun2Damage,     Gun3Damage,     Gun4Damage}; //array for usable guns
 
 #define DELAY_AFTER_SEND 2000
 #define DELAY_AFTER_LOOP 5000
@@ -57,7 +40,7 @@ void ChangeGuns(){
   if (GunIndex == 4){
     GunIndex = 0;
   }
-  GunType = UsableGuns[GunIndex];
+  //GunType = UsableGuns[GunIndex];
   
 
 }
@@ -66,7 +49,7 @@ void ChangeTeams(){
   if (TeamIndex == 5){
     TeamIndex = 0;
   }
-  Team = UsableTeams[GunIndex];
+  //Team = UsableTeams[TeamIndex];
   
 
 }
@@ -75,6 +58,7 @@ uint16_t sAddress = 0x0102;
 uint8_t sCommand = 0x34;
 uint8_t sRepeats = 1;
 uint32_t testdata = 0x11010001;
+uint32_t data = 0x0;
 void send_ir_data() {
     Serial.print(F("Sending: 0x"));
     Serial.print(sAddress, HEX);
@@ -88,8 +72,9 @@ void send_ir_data() {
         sRepeats = 4;
     }
     // Results for the first loop to: Protocol=NEC Address=0x102 Command=0x34 Raw-Data=0xCB340102 (32 bits)
-    IrSender.sendNECRaw(testdata,1);//sAddress, sCommand, sRepeats);
-    IrSender.sendNEC(GunType,testdata,1);
+    IrSender.sendNECRaw(gunBlue1X,1);//sAddress, sCommand, sRepeats);
+    IrSender.sendNECMSB(gunBlue1X,32);
+    //IrSender.sendNEC(,testdata,1);  
 }
 
 void receive_ir_data() {
@@ -98,13 +83,15 @@ void receive_ir_data() {
         Serial.print(getProtocolString(IrReceiver.decodedIRData.protocol));
         Serial.print(F("Decoded raw data: "));
         Serial.print(IrReceiver.decodedIRData.decodedRawData, HEX);
-        uint32_t Tempdata = IrReceiver.decodedIRData.decodedRawData;
+        //uint32_t Tempdata = IrReceiver.decodedIRData.decodedRawData;
         Serial.print(F(", decoded address: "));
         Serial.print(IrReceiver.decodedIRData.address, HEX);
         Serial.print(F(", decoded command: "));
-        uint16_t TempAddress =IrReceiver.decodedIRData.address;
+        //uint16_t TempAddress =IrReceiver.decodedIRData.address;
         Serial.println(IrReceiver.decodedIRData.command, HEX);
+        uint32_t data = IrReceiver.decodedIRData.decodedRawData;
         IrReceiver.resume();
+        
 
     }
     if (IrReceiver.decodeNEC()) {
@@ -117,9 +104,12 @@ void receive_ir_data() {
         Serial.print(IrReceiver.decodedIRData.address, HEX);
         Serial.print(F(", decoded command: "));
         Serial.println(IrReceiver.decodedIRData.command, HEX);
+        uint32_t data = IrReceiver.decodedIRData.decodedRawData;
         IrReceiver.resume();
+        
       
-    }   
+    }
+    
     
 }
 void buzzerfun(){
