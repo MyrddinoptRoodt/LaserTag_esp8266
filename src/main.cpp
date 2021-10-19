@@ -6,10 +6,20 @@
 #include <IRtext.h>
 #include <IRutils.h>
 #include <assert.h>
+#include <FastLED.h>
+
+#define ledPin     13
+#define COLOR_ORDER RGB
+#define CHIPSET     WS2811
+#define NUM_LEDS    1
+
+#define BRIGHTNESS  200
+#define FRAMES_PER_SECOND 60
 #define KORT 393
 #define LANG 786 // gemiddelde van veel dingen
 const uint32_t kBaudRate = 115200;
 const uint16_t kCaptureBufferSize = 1024;
+CRGB leds[NUM_LEDS];
 
 const uint8_t kTimeout = 50;
 const uint16_t kMinUnknownSize = 12;
@@ -73,6 +83,7 @@ void setup() {
   irsend.begin();
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
   assert(irutils::lowLevelSanityCheck() == 0);
+  FastLED.addLeds<WS2812B, ledPin, RGB>(leds, NUM_LEDS);
 
   Serial.printf("\n" D_STR_IRRECVDUMP_STARTUP "\n", kRecvPin);
 #if DECODE_HASH
@@ -94,6 +105,7 @@ void buzzerfun(int repeat){
     delay(5);
     digitalWrite(buzzer, HIGH);
     i++;
+    
   }
   
 }
@@ -356,17 +368,53 @@ void changeGuns (){
           
   default:
     break;
-  }
-  
+  } 
 }
 
 
 void loop() {
-  while (Health > 1)
+  while (Health > 0)
   {
+    leds[0] = CRGB (0, 255, 0);
+    FastLED.show();
+    //delay(2000);
+    leds[0] = CRGB (0, 0, 0);
+    FastLED.show();
+    /*switch (Health)
+    {
+    case 9:
+    case 8:
+      leds[0] = CRGB (0, 255, 0);
+      break;
+    case 7:
+      leds[0] = CRGB (0,255,0);
+      delay(200);
+      leds[0] = CRGB (0, 0, 0);
+      break;
+    case 6:
+    case 5:
+      leds[0] = CRGB (255,255,0);
+      break;     
+    case 4:
+      leds[0] = CRGB (255,255,0);
+      delay(200);
+      leds[0] = CRGB (0, 0, 0);
+      break;
+    case 3:
+    case 2:
+      leds[0] = CRGB (255,0,0);
+      break;
+    case 1:
+      leds[0] = CRGB (255,0,0);
+      delay(200);
+      leds[0] = CRGB (0, 0, 0);                         
+    default:
+      break;
+    }*/
     if (digitalRead(button_Shoot) == HIGH)
     {
       prepare_shot(gun);
+      Serial.println("Gun: " + gun);
     }
     if (digitalRead(ChangeTeams_Button) == HIGH)
     {
@@ -387,6 +435,9 @@ void loop() {
     if ((digitalRead(ChangeGuns_Button) == HIGH)and (eigenteam = FFA))
     {
       changeGuns();
+      Serial.println("Gun: " + gun);
+      Serial.println("Gun ID: " + guns);
+      Serial.println("Team: " + eigenteam); 
     }    
     
     
@@ -403,6 +454,10 @@ void loop() {
     }
     delay(200);
   }
-  delay(200);
+
+  delay(100);
   Serial.println("u dead m8");
+  leds[0] = CRGB (255,0,0);
+  delay(100  );
+  leds[0] = CRGB (0, 0, 0);
 }
