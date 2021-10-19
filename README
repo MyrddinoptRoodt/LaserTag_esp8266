@@ -4,7 +4,8 @@ a group (school) project to build laser tag guns with some basic featuers (up to
 This project is written using Visual Studio Code with the platformIO extention.
 For this project we use a (LoLin) NodeMcu v3 (using the esp 8266)(in platformIO seen as nodeMcu v1.0), and i make use of the IRremoteESP8266 libary.
 Their github: https://github.com/crankyoldgit/IRremoteESP8266
-Also using the <a href="https://github.com/FastLED/FastLED">FastLED</a> libary by:
+Also using the FastLED libary:      https://github.com/FastLED/FastLED
+                           by:
                                     Daniel Garcia : https://github.com/focalintent
                                     Mark Kriegsman: https://github.com/kriegsman
                                     Sam Guyer     : https://github.com/samguyer
