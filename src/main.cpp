@@ -6,12 +6,20 @@
 #include <IRtext.h>
 #include <IRutils.h>
 #include <assert.h>
-#include <string>
-#include <iostream>
+#include <FastLED.h>
+
+#define ledPin     13
+#define COLOR_ORDER RGB
+#define CHIPSET     WS2811
+#define NUM_LEDS    1
+
+#define BRIGHTNESS  200
+#define FRAMES_PER_SECOND 60
 #define KORT 393
 #define LANG 786 // gemiddelde van veel dingen
 const uint32_t kBaudRate = 115200;
 const uint16_t kCaptureBufferSize = 1024;
+CRGB leds[NUM_LEDS];
 
 const uint8_t kTimeout = 50;
 const uint16_t kMinUnknownSize = 12;
@@ -32,38 +40,38 @@ uint16_t rawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393,
 //uint16_t rawData[] =   { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,786 ,786  ,393  , 5600};
 // Example Samsung A/C state captured from IRrecvDumpV2.ino
 // Example Samsung A/C state captured from IRrecvDumpV2.ino
-std::string BlueGunx1    = "00000001 00000001 00000110";
-std::string BlueGunx2    = "00000001 00000010 00000111";
-std::string BlueGunx3    = "00000001 00000011 00001000";
-std::string RedGunx1     = "00000010 00000001 00000111";
-std::string RedGunx2     = "00000010 00000010 00001000";
-std::string RedGunx3     = "00000010 00000011 00001001";
-std::string GreenGunx1   = "00000011 00000001 00001000";
-std::string GreenGunx2   = "00000011 00000010 00001001";
-std::string GreenGunx3   = "00000011 00000011 00001011";
-std::string WhiteGunx1   = "00000100 00000001 00001001";
-std::string WhiteGunx2   = "00000100 00000010 00001011";
-std::string WhiteGunx3   = "00000100 00000011 00001100";
-std::string FFAGUN       = "00000101 00000001 00001100";
+String BlueGunx1    = "00000001 00000001 00000110";
+String BlueGunx2    = "00000001 00000010 00000111";
+String BlueGunx3    = "00000001 00000011 00001000";
+String RedGunx1     = "00000010 00000001 00000111";
+String RedGunx2     = "00000010 00000010 00001000";
+String RedGunx3     = "00000010 00000011 00001001";
+String GreenGunx1   = "00000011 00000001 00001000";
+String GreenGunx2   = "00000011 00000010 00001001";
+String GreenGunx3   = "00000011 00000011 00001011";
+String WhiteGunx1   = "00000100 00000001 00001001";
+String WhiteGunx2   = "00000100 00000010 00001011";
+String WhiteGunx3   = "00000100 00000011 00001100";
+String FFAGUN       = "00000101 00000001 00001100";
 
-std::string Blue   =   "001";
-std::string Red    =   "010";
-std::string Green  =   "011";
-std::string White  =   "100";
-std::string FFA    =   "101";
-std::string eigenteam = "101";
+String Blue   =   "001";
+String Red    =   "010";
+String Green  =   "011";
+String White  =   "100";
+String FFA    =   "101";
+String eigenteam = "101";
 int teams = 0;
-std::string gun = FFAGUN;
+String gun = FFAGUN;
 int guns = 100;
 
-std::string Damagex1   = "01";
-std::string Damagex2   = "10";
-std::string Damagex3   = "11";
+String Damagex1   = "01";
+String Damagex2   = "10";
+String Damagex3   = "11";
 int buzzer = 15;  //  pin D8
-int ChangeTeams_Button = 12;
+int ChangeTeams_Button = 12; //d6
 int button_Shoot = 5;    // pushbutton connected to digital pin D0
 int val = 0;      // variable to store the read value
-int ChangeGuns_Button = 16;
+int ChangeGuns_Button = 16;//d0
 
 int Health = 9;
 
@@ -75,6 +83,7 @@ void setup() {
   irsend.begin();
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
   assert(irutils::lowLevelSanityCheck() == 0);
+  FastLED.addLeds<WS2812B, ledPin, RGB>(leds, NUM_LEDS);
 
   Serial.printf("\n" D_STR_IRRECVDUMP_STARTUP "\n", kRecvPin);
 #if DECODE_HASH
@@ -96,70 +105,87 @@ void buzzerfun(int repeat){
     delay(5);
     digitalWrite(buzzer, HIGH);
     i++;
+    
   }
   
 }
-void ChangeTeams(){
+String ChangeTeams(int teams){
   teams ++;
   if (teams == 5){
     teams = 0;
+    gun.clear();
+    eigenteam.clear();
   }
+  String temp = "";
   switch (teams)
   {
-  case 0:
-    eigenteam = FFA;
-    gun = FFAGUN;
-    guns = 100; 
-    break;
-  case 1:
-    eigenteam = Blue;
-    gun = BlueGunx1;
-    guns = 10;
-    break;
-  case 2:
-    eigenteam = Red;
-    gun = RedGunx1;
-    guns = 20;
-    break;
-  case 3:
-    eigenteam = Green;
-    gun = GreenGunx1;
-    guns = 30;
-    break;
-  case 4:
-    eigenteam = White;
-    gun = WhiteGunx1;
-    guns = 40;
-    break;
-  default:
-    eigenteam = FFA;
-    gun = FFAGUN;
-    guns = 100;
-    break;
-  }
+    case 0:
+      eigenteam = FFA;
+      gun = FFAGUN;
+      guns = 100;
+      temp = eigenteam + gun;
+      break;
+    case 1:
+      eigenteam = Blue;
+      gun = BlueGunx1;
+      guns = 10;
+      temp = eigenteam + gun;
+      break;
+    case 2:
+      eigenteam = Red;
+      gun = RedGunx1;
+      guns = 20;
+      temp = eigenteam + gun;
+      break;
+    case 3:
+      eigenteam = Green;
+      gun = GreenGunx1;
+      guns = 30;
+      temp = eigenteam + gun;
+      break;
+    case 4:
+      eigenteam = White;
+      gun = WhiteGunx1;
+      guns = 40;
+      temp = eigenteam + gun;
+      break;
+    default:
+      eigenteam = FFA;
+      gun = FFAGUN;
+      guns = 100;
+      temp = eigenteam + gun;
+      break;
+    }
+    return temp;
+      
   //Team = UsableTeams[TeamIndex];
   
 
 }
 
-void prepare_shot(std::string shot){
-  std::string list = "01";
+void prepare_shot(String shot){
+  String list = "01";
   int(i) = 0;
   int(array_place) = 17;
+  String temp = "";
   while (i < shot.length())
   {
-    if (shot[i] == list[1]){
+    if (shot.charAt(i) == list[1]){
       rawData[array_place] = 786;
       array_place++;
+      temp = temp + 786;
     }
-    if (shot[i] == list[0])
+    if (shot.charAt(i) == list[0])
     {
       rawData[array_place] = 393;
       array_place++;
+      temp = temp + 786;
       
     }
     i++;
   }
+  
+  Serial.println("Shoot: " + temp );
   irsend.sendRaw(rawData,42,38);
 
   
@@ -169,20 +195,18 @@ void prepare_shot(std::string shot){
 
 
 
-void get_damage(std::string temp){
-  std::string temp2 = "";
-  temp2.append(temp.substr(15,2));
-  if (temp2 == Damagex1)
+void get_damage(String temp){
+  if (temp == Damagex1)
   {
     Health --;
     buzzerfun(1);
   }
-  if (temp2 == Damagex2)
+  if (temp == Damagex2)
   {
     Health -= 2;
     buzzerfun(2);
   }
-  if (temp2 == Damagex3)
+  if (temp == Damagex3)
   {
     Health -= 3;
     buzzerfun(3);
@@ -192,42 +216,51 @@ void get_damage(std::string temp){
     Serial.println("Dead");
     buzzerfun(5);
   } 
+  Serial.println(Health);
+  Serial.println(temp);
 }
 
 void decodeData(uint16_t * Datass){
-  std::string binairy_code = "";
+  String binairy_code = "";
   int(i) = 17;
   int(iteration) = 1;
   while (i<41)
   {
+   String bin_old = binairy_code;
    uint16_t value = Datass[i];
    if (value > 600)
    {
-     binairy_code.append("1");
+     binairy_code = bin_old + "1";
    }
    else {
-     binairy_code.append("0");
+     binairy_code = bin_old + "0";
    }
    if ((iteration%8 == 0)){
-     binairy_code.append(" ");
+     String bin_old = binairy_code;
+     binairy_code = bin_old + " ";
    }
    iteration++;
    i++;
   }
-  Serial.println("code: ");
+  Serial.println("code: " + binairy_code);
+  Serial.println("code damage: " + binairy_code.substring(15,17));
   bool b = true; 
   while (b)
   {
-    std::string temp = "";
-    temp.append(binairy_code.substr(5,3));
-    if ((temp != eigenteam) and (temp != FFA))
+    
+    String temp = binairy_code.substring(5,8);
+    String damage = binairy_code.substring(15,17);
+    Serial.println(damage);
+    Serial.println(temp);
+    if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam))
+    // if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam) and (eigenteam != FFA)) 
     {
-      get_damage(binairy_code);
+      get_damage(binairy_code.substring(15,17));
       b = false;
     }
     else if ((temp == FFA) and (eigenteam == FFA))
     {
-      get_damage(binairy_code);
+      get_damage(binairy_code.substring(5,17));
       b = false;
     }
     else {
@@ -241,6 +274,7 @@ void changeGuns (){
   switch (teams)
   {
   case 0:
+    gun.clear();
     gun = FFAGUN;
     break;
   case 1:
@@ -334,27 +368,78 @@ void changeGuns (){
           
   default:
     break;
-  }
-  
+  } 
 }
 
 
 void loop() {
-  while (Health > 1)
+  while (Health > 0)
   {
+    leds[0] = CRGB (0, 255, 0);
+    FastLED.show();
+    //delay(2000);
+    leds[0] = CRGB (0, 0, 0);
+    FastLED.show();
+    /*switch (Health)
+    {
+    case 9:
+    case 8:
+      leds[0] = CRGB (0, 255, 0);
+      break;
+    case 7:
+      leds[0] = CRGB (0,255,0);
+      delay(200);
+      leds[0] = CRGB (0, 0, 0);
+      break;
+    case 6:
+    case 5:
+      leds[0] = CRGB (255,255,0);
+      break;     
+    case 4:
+      leds[0] = CRGB (255,255,0);
+      delay(200);
+      leds[0] = CRGB (0, 0, 0);
+      break;
+    case 3:
+    case 2:
+      leds[0] = CRGB (255,0,0);
+      break;
+    case 1:
+      leds[0] = CRGB (255,0,0);
+      delay(200);
+      leds[0] = CRGB (0, 0, 0);                         
+    default:
+      break;
+    }*/
     if (digitalRead(button_Shoot) == HIGH)
     {
-      //prepare_shot(gun);
+      prepare_shot(gun);
+      Serial.println("Gun: " + gun);
     }
     if (digitalRead(ChangeTeams_Button) == HIGH)
     {
-      //ChangeTeams();
+      Serial.println("change team");
+      String tijdelijk = ChangeTeams(teams);
+      teams ++;
+      if (teams > 4)
+      {
+        teams = 0;
+      }
+      eigenteam = tijdelijk.substring(0,3);
+      gun = tijdelijk.substring(3,tijdelijk.length());
+      Serial.println("gun: " + gun);
+      Serial.println("team: " + eigenteam);
+      
+      
     }
-    /*if ((digitalRead(ChangeTeams_Button) == HIGH) and (eigenteam == FFA))
+    if ((digitalRead(ChangeGuns_Button) == HIGH)and (eigenteam = FFA))
     {
-      //changeGuns();
+      changeGuns();
+      Serial.println("Gun: " + gun);
+      Serial.println("Gun ID: " + guns);
+      Serial.println("Team: " + eigenteam); 
     }    
-    */
+    
     
     if (irrecv.decode(&results)) {
    
@@ -366,9 +451,12 @@ void loop() {
       decodeData(Datass);
       yield();             // Feed the WDT (again)
       //String hit = resultToTimingInfo(&results);
-    delay(200);
     }
-    
+    delay(200);
   }
-  delay(2000);
+  delay(100);
+  Serial.println("u dead m8");
+  leds[0] = CRGB (255,0,0);
+  delay(100  );
+  leds[0] = CRGB (0, 0, 0);
 }
