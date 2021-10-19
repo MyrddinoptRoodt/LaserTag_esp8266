@@ -454,6 +454,7 @@ void loop() {
     }
     delay(200);
   }
+
   delay(100);
   Serial.println("u dead m8");
   leds[0] = CRGB (255,0,0);

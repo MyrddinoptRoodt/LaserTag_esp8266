@@ -1,0 +1,6 @@
+# LaserTag_esp8266
+# a group (school) project to build laser tag guns with some basic featuers (up to 4 teams, multiple game modes, multiple guns,...).
+#
+# This project is written using Visual Studio Code with the platformIO extention.
+# For this project we use a (LoLin) NodeMcu v3 (using the esp 8266), and i make use of the IRremoteESP8266 libary.
+# Their github: https://github.com/crankyoldgit/IRremoteESP8266
