@@ -69,11 +69,11 @@ String Damagex1   = "01";
 String Damagex2   = "10";
 String Damagex3   = "11";
 int buzzer = 15;  //  pin D8
-int ChangeTeams_Button = 12; //d6
+const uint16_t ChangeTeams_Button = 12; //d6
 int button_Shoot = 5;    // pushbutton connected to digital pin D1
 int val = 0;      // variable to store the read value
-int ChangeGuns_Button = 16;//d0 button to change the gun type
-int Reload_Button = 0;//reload button on D3 (gpio 0)
+const uint8_t ChangeGuns_Button = 16;//d0 button to change the gun type
+const uint8_t Reload_Button = 0;//reload button on D4 (gpio 2)
 int bullets = 6;//amount of bullets for default gun
 int Health = 9; //you start with 9hp
 int bullet_type = bullet1x;
@@ -169,10 +169,10 @@ String ChangeTeams(int teams){
 
 void prepare_shot(String shot){ //this function prepares, and fires the shot, first it will create a string to send in binary, then it will translate the string to a raw array, wich will be send as is
   String list = "01";
-  int(i) = 0;
-  int(array_place) = 17;
+  u_int i = 0;
+  int array_place = 17;
   String temp = "";
-  while (i < shot.length())
+  while (i <= shot.length())
   {
     if (shot.charAt(i) == list[1]){
       rawData[array_place] = 786;
@@ -226,8 +226,8 @@ void get_damage(String temp){ //as the name sugests, this function stands in to 
 
 void decodeData(uint16_t * Datass){ //this function is to "decode" the data, since it is encoded "raw"
   String binairy_code = "";
-  int(i) = 17;
-  int(iteration) = 1;
+  int i = 17;
+  int iteration = 1;
   while (i<41) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
   {
    String bin_old = binairy_code;
@@ -413,27 +413,33 @@ void changeGuns (){ //function that changes the gun type, it uses the switch met
 
 
 void loop() {
-  while (Health > 1) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
+  if (Health > 0) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
   {
-    if (digitalRead(Reload_Button) == HIGH){
+    //int Reload_Button_Value = digitalRead(Reload_Button);
+    //Serial.println(Reload_Button_Value);
+    if (digitalRead(Reload_Button) == HIGH)
+    {
       bullets = bullet_type;
+      Serial.print("reload gun: ");
+      Serial.println(bullets);
 
     }
-    if (Health = 9)
+    if (Health == 9)
     {
       leds[0] = CRGB (0,255,0);
     }
-    if (Health = 6)
+    if (Health == 6)
     {
       leds[0] = CRGB (255,255,0);
     }
-    if (Health = 3)
+    if (Health == 3)
     {
       leds[0] = CRGB (255,0,0);
     }
     if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
       prepare_shot(gun);
+      bullets--;
     }
     if (digitalRead(ChangeTeams_Button) == HIGH) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
     {
@@ -463,9 +469,7 @@ void loop() {
     
     if (irrecv.decode(&results)) { //this code will try to read/decode the incomming  signals, and will also post them in the serial interface.
                                    //this will also call the function to take damage (and to recognise the other gun).
-   
-      uint32_t now = millis();
-   
+    
       Serial.println(resultToSourceCode(&results));
       Serial.println();
       uint16_t * Datass = resultToRawArray(&results);    // Blank line between entries
@@ -476,8 +480,12 @@ void loop() {
     delay(200);
   }
   delay(200);
-  Serial.println("u dead m8");//this is the message you get when you die
-  leds[0] = CRGB (255,0,0);
-  delay(100  );
-  leds[0] = CRGB (0, 0, 0);
+  if (Health <= 0)
+  {
+    Serial.println("u dead m8");//this is the message you get when you die
+    leds[0] = CRGB (255,0,0);
+    delay(100  );
+    leds[0] = CRGB (0, 0, 0);
+  }
+
 }
