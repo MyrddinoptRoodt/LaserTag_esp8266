@@ -8,7 +8,7 @@
 #include <assert.h>
 #include <FastLED.h>
 
-#define ledPin     13 //D7
+#define ledPin     2 //D4
 #define COLOR_ORDER RGB
 #define CHIPSET     WS2811
 #define NUM_LEDS    1
@@ -23,7 +23,7 @@ const uint16_t kMinUnknownSize = 12;
 
 const uint8_t kTolerancePercentage = kTolerance;  // kTolerance is normally 25%
 
-const uint16_t kIrLed = 4;  // ESP8266 GPIO pin to use. Recommended: 4 (D2).
+const uint16_t kIrLed = 15;  // ESP8266 GPIO pin to use. Recommended: 4 (D2) // using 15 (D8)
 const uint16_t kRecvPin = 14; // pin to receive ir data
 
 CRGB leds[NUM_LEDS];
@@ -68,18 +68,20 @@ int guns = 100;
 String Damagex1   = "01";
 String Damagex2   = "10";
 String Damagex3   = "11";
-int buzzer = 15;  //  pin D8
+int buzzer = 0;  //  pin D3
 const uint16_t ChangeTeams_Button = 12; //d6
-int button_Shoot = 5;    // pushbutton connected to digital pin D1
+int button_Shoot = 13;    // pushbutton connected to digital pin D4
 int val = 0;      // variable to store the read value
-const uint8_t ChangeGuns_Button = 16;//d0 button to change the gun type
-const uint8_t Reload_Button = 0;//reload button on D4 (gpio 2)
+const uint8_t ChangeGuns_Button = 16;//D3 button to change the gun type
+const uint8_t Reload_Button = A0;//reload button on A0 
 int bullets = 6;//amount of bullets for default gun
 int Health = 9; //you start with 9hp
 int bullet_type = bullet1x;
 
 void setup() {
-  pinMode(buzzer, OUTPUT);  // sets the digital pin 13 as output
+  pinMode(kIrLed, OUTPUT);
+  digitalWrite(kIrLed,LOW);
+  pinMode(buzzer, OUTPUT);  // sets the digital pin 15 as output
   pinMode(button_Shoot, INPUT);    // sets the digital pin 7 as input
   pinMode(ChangeGuns_Button,INPUT);
   pinMode(Reload_Button,INPUT);
@@ -99,7 +101,7 @@ void setup() {
 }
 void buzzerfun(int repeat){
   int i = 0;
-  while (i < repeat)
+  while (i < repeat*2)
   {
     digitalWrite(buzzer, LOW);
     delay(5);
@@ -110,6 +112,7 @@ void buzzerfun(int repeat){
     digitalWrite(buzzer, HIGH);
     i++;
   }
+  digitalWrite(buzzer, LOW);
   
 }
 
@@ -189,7 +192,8 @@ void prepare_shot(String shot){ //this function prepares, and fires the shot, fi
     i++;
   }
   
-  Serial.println("Shoot: " + temp );
+  Serial.print("Shoot: ");
+  Serial.println(temp);
   irsend.sendRaw(rawData,42,38);
 
   
@@ -246,8 +250,10 @@ void decodeData(uint16_t * Datass){ //this function is to "decode" the data, sin
    iteration++;
    i++;
   }
-  Serial.println("code: " + binairy_code);
-  Serial.println("code damage: " + binairy_code.substring(15,17)); //this gets a substring which contain the 'damage' digets to be printed, this will be seen again in the next short while
+  Serial.print("code: ");
+  Serial.println(binairy_code);
+  Serial.print("code damage: "); //this gets a substring which contain the 'damage' digets to be printed, this will be seen again in the next short while
+  Serial.println(binairy_code.substring(15,17));
   bool b = true; 
   while (b)
   {
@@ -417,7 +423,8 @@ void loop() {
   {
     //int Reload_Button_Value = digitalRead(Reload_Button);
     //Serial.println(Reload_Button_Value);
-    if (digitalRead(Reload_Button) == HIGH)
+    //Serial.println(analogRead(Reload_Button));
+    if (analogRead(Reload_Button) == 1024)
     {
       bullets = bullet_type;
       Serial.print("reload gun: ");
@@ -452,8 +459,10 @@ void loop() {
       }
       eigenteam = tijdelijk.substring(0,3);
       gun = tijdelijk.substring(3,tijdelijk.length());
-      Serial.println("gun: " + gun);
-      Serial.println("team: " + eigenteam);
+      Serial.print("gun: ");
+      Serial.println(gun);
+      Serial.print("team: ");
+      Serial.println(eigenteam);
       
       
     }
@@ -461,9 +470,12 @@ void loop() {
     {
       changeGuns();
            
-      Serial.println("Gun: " + gun);
-      Serial.println("Gun ID: " + guns);
-      Serial.println("Team: " + eigenteam); 
+      Serial.print("Gun: ");
+      Serial.println(gun);
+      Serial.print("Gun ID: ");
+      Serial.println(guns);
+      Serial.print("Team: ");
+      Serial.println(eigenteam); 
     }    
     
     
