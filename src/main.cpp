@@ -9,9 +9,9 @@
 #include <FastLED.h>
 
 #define ledPin     2 //D4
-#define COLOR_ORDER RGB
+//#define COLOR_ORDER GRB
 #define CHIPSET     WS2811
-#define NUM_LEDS    1
+#define NUM_LEDS    2
 
 #define KORT 393
 #define LANG 786 // gemiddelde van veel dingen
@@ -89,7 +89,8 @@ void setup() {
   irsend.begin();
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
   assert(irutils::lowLevelSanityCheck() == 0);
-  FastLED.addLeds<WS2812B, ledPin, RGB>(leds, NUM_LEDS);
+  FastLED.addLeds<WS2812B, ledPin, GRB>(leds, NUM_LEDS);
+  
 
   Serial.printf("\n" D_STR_IRRECVDUMP_STARTUP "\n", kRecvPin);
 #if DECODE_HASH
@@ -99,6 +100,7 @@ void setup() {
   irrecv.setTolerance(kTolerancePercentage);  // Override the default tolerance.
   irrecv.enableIRIn();  // Start the receiver
 }
+
 void buzzerfun(int repeat){
   int i = 0;
   while (i < repeat*2)
@@ -127,36 +129,42 @@ String ChangeTeams(int teams){
   switch (teams)
   {
     case 0:
+      leds[1] = CRGB::Purple;
       eigenteam = FFA;
       gun = FFAGUN;
       guns = 100;
       temp = eigenteam + gun;
       break;
     case 1:
+      leds[1] = CRGB::Blue;
       eigenteam = Blue;
       gun = BlueGunx1;
       guns = 10;
       temp = eigenteam + gun;
       break;
     case 2:
+      leds[1] = CRGB::Red;
       eigenteam = Red;
       gun = RedGunx1;
       guns = 20;
       temp = eigenteam + gun;
       break;
     case 3:
+      leds[1] = CRGB::Green;
       eigenteam = Green;
       gun = GreenGunx1;
       guns = 30;
       temp = eigenteam + gun;
       break;
     case 4:
+       leds[1] = CRGB::White;
       eigenteam = White;
       gun = WhiteGunx1;
       guns = 40;
       temp = eigenteam + gun;
       break;
     default:
+      leds[1] = CRGB::Purple;
       eigenteam = FFA;
       gun = FFAGUN;
       guns = 100;
@@ -232,6 +240,8 @@ void decodeData(uint16_t * Datass){ //this function is to "decode" the data, sin
   String binairy_code = "";
   int i = 17;
   int iteration = 1;
+  Serial.print("Eigen team: ");
+  Serial.println(eigenteam);
   while (i<41) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
   {
    String bin_old = binairy_code;
@@ -262,20 +272,23 @@ void decodeData(uint16_t * Datass){ //this function is to "decode" the data, sin
     String damage = binairy_code.substring(15,17);//this (once again) will remember the damage value
     Serial.println(damage);
     Serial.println(temp);
-    if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and ((temp != eigenteam) and (temp != FFA))) 
+    if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != FFA)) 
     // if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam) and (eigenteam != FFA)) 
     {
       get_damage(binairy_code.substring(15,17));
       b = false;
     }
-    else if ((temp == FFA) and (eigenteam == FFA))
+    if (temp == FFA)
     {
-      get_damage(binairy_code.substring(5,17));
+      if (eigenteam == FFA)
+      {
+        get_damage(damage);
+      }
       b = false;
     }
-    else {
-      b = false;
-    }
+    
+    b = false;
+  
   }
   
 }
@@ -419,6 +432,7 @@ void changeGuns (){ //function that changes the gun type, it uses the switch met
 
 
 void loop() {
+  FastLED.show();
   if (Health > 0) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
   {
     //int Reload_Button_Value = digitalRead(Reload_Button);
@@ -429,24 +443,29 @@ void loop() {
       bullets = bullet_type;
       Serial.print("reload gun: ");
       Serial.println(bullets);
+      Serial.println(analogRead(Reload_Button));
 
     }
     if (Health == 9)
     {
-      leds[0] = CRGB (0,255,0);
+      leds[0] = CRGB::LimeGreen;
     }
     if (Health == 6)
     {
-      leds[0] = CRGB (255,255,0);
+      leds[0] = CRGB::Orange;
     }
     if (Health == 3)
     {
-      leds[0] = CRGB (255,0,0);
+      leds[0] = CRGB::DarkRed;
     }
     if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
-      prepare_shot(gun);
-      bullets--;
+      if (bullets>=1){
+        prepare_shot(gun);
+        bullets--;
+        Serial.print("Remaining bullets: ");
+        Serial.println(bullets);
+      }
     }
     if (digitalRead(ChangeTeams_Button) == HIGH) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
     {
@@ -466,7 +485,7 @@ void loop() {
       
       
     }
-    if ((digitalRead(ChangeGuns_Button) == HIGH)and (eigenteam = FFA)) //reads the change guns pin, and will attempt to change 'gun type' if it is possible in the given team
+    if ((digitalRead(ChangeGuns_Button) == HIGH)and (eigenteam != FFA)) //reads the change guns pin, and will attempt to change 'gun type' if it is possible in the given team
     {
       changeGuns();
            
@@ -496,8 +515,11 @@ void loop() {
   {
     Serial.println("u dead m8");//this is the message you get when you die
     leds[0] = CRGB (255,0,0);
+    FastLED.show();
     delay(100  );
+
     leds[0] = CRGB (0, 0, 0);
+    FastLED.show();
   }
 
 }
