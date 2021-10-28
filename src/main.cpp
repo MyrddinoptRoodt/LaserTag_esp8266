@@ -465,6 +465,7 @@ void loop() {
         bullets--;
         Serial.print("Remaining bullets: ");
         Serial.println(bullets);
+        buzzerfun(2);
       }
     }
     if (digitalRead(ChangeTeams_Button) == HIGH) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
