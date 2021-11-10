@@ -7,6 +7,10 @@
 #include <IRutils.h>
 #include <assert.h>
 #include <FastLED.h>
+#include <Wire.h>
+#include "SSD1306Wire.h"
+#include "OLEDDisplayUi.h"
+
 
 #define ledPin     2 //D4
 //#define COLOR_ORDER GRB
@@ -15,6 +19,36 @@
 
 #define KORT 393
 #define LANG 786 // gemiddelde van veel dingen
+#define WiFi_Logo_width 60
+#define WiFi_Logo_height 36
+boolean connected = false;
+const uint8_t WiFi_Logo_bits[] PROGMEM = {
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xFF, 0x07, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0xE0, 0xFF, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0xFF,
+  0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC, 0xFF, 0xFF, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0xFE, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
+  0xFF, 0x03, 0x00, 0x00, 0x00, 0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00,
+  0x00, 0xFF, 0xFF, 0xFF, 0x07, 0xC0, 0x83, 0x01, 0x80, 0xFF, 0xFF, 0xFF,
+  0x01, 0x00, 0x07, 0x00, 0xC0, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x0C, 0x00,
+  0xC0, 0xFF, 0xFF, 0x7C, 0x00, 0x60, 0x0C, 0x00, 0xC0, 0x31, 0x46, 0x7C,
+  0xFC, 0x77, 0x08, 0x00, 0xE0, 0x23, 0xC6, 0x3C, 0xFC, 0x67, 0x18, 0x00,
+  0xE0, 0x23, 0xE4, 0x3F, 0x1C, 0x00, 0x18, 0x00, 0xE0, 0x23, 0x60, 0x3C,
+  0x1C, 0x70, 0x18, 0x00, 0xE0, 0x03, 0x60, 0x3C, 0x1C, 0x70, 0x18, 0x00,
+  0xE0, 0x07, 0x60, 0x3C, 0xFC, 0x73, 0x18, 0x00, 0xE0, 0x87, 0x70, 0x3C,
+  0xFC, 0x73, 0x18, 0x00, 0xE0, 0x87, 0x70, 0x3C, 0x1C, 0x70, 0x18, 0x00,
+  0xE0, 0x87, 0x70, 0x3C, 0x1C, 0x70, 0x18, 0x00, 0xE0, 0x8F, 0x71, 0x3C,
+  0x1C, 0x70, 0x18, 0x00, 0xC0, 0xFF, 0xFF, 0x3F, 0x00, 0x00, 0x08, 0x00,
+  0xC0, 0xFF, 0xFF, 0x1F, 0x00, 0x00, 0x0C, 0x00, 0x80, 0xFF, 0xFF, 0x1F,
+  0x00, 0x00, 0x06, 0x00, 0x80, 0xFF, 0xFF, 0x0F, 0x00, 0x00, 0x07, 0x00,
+  0x00, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0xF8, 0xFF, 0xFF,
+  0xFF, 0x7F, 0x00, 0x00, 0x00, 0x00, 0xFE, 0xFF, 0xFF, 0x01, 0x00, 0x00,
+  0x00, 0x00, 0xFC, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0xFF,
+  0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0xFF, 0x1F, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x80, 0xFF, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  };
+
 const uint32_t kBaudRate = 115200; //bitrate
 const uint16_t kCaptureBufferSize = 1024; 
 
@@ -25,7 +59,9 @@ const uint8_t kTolerancePercentage = kTolerance;  // kTolerance is normally 25%
 
 const uint16_t kIrLed = 15;  // ESP8266 GPIO pin to use. Recommended: 4 (D2) // using 15 (D8)
 const uint16_t kRecvPin = 14; // pin to receive ir data
-
+String ownTeam = "FFA";
+SSD1306Wire display(0x3c, SDA, SCL);
+OLEDDisplayUi ui     ( &display );
 CRGB leds[NUM_LEDS];
 IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, true);
 decode_results results;  // Somewhere to store the results
@@ -77,6 +113,67 @@ const uint8_t Reload_Button = A0;//reload button on A0
 int bullets = 6;//amount of bullets for default gun
 int Health = 9; //you start with 9hp
 int bullet_type = bullet1x;
+int time_wait = 0;
+int gun_delay   = 10;
+
+void msOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
+  display->setTextAlignment(TEXT_ALIGN_RIGHT);
+  display->setFont(ArialMT_Plain_10);
+  display->drawString(128, 0, String(millis()));
+}
+
+void drawFrame1(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  // draw an xbm image.
+  // Please note that everything that should be transitioned
+  // needs to be drawn relative to x and y
+  display->setTextAlignment(TEXT_ALIGN_LEFT);
+  display->setFont(ArialMT_Plain_16);
+  String status = "Not connected";
+  if (connected){
+   status.clear();
+   status.concat("Connected");
+  }
+  display->drawString(0 + x, 10 + y, status);
+
+}
+void drawFrame2(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  // draw an xbm image.
+  // Please note that everything that should be transitioned
+  // needs to be drawn relative to x and y
+
+  display->setTextAlignment(TEXT_ALIGN_LEFT);
+  display->setFont(ArialMT_Plain_24);
+  
+  String hp = "HP: ";
+  hp.concat(Health);
+  display->drawString(0 + x, 10 + y, hp);
+ 
+}
+void drawFrame3(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  // draw an xbm image.
+  // Please note that everything that should be transitioned
+  // needs to be drawn relative to x and y
+
+  display->setTextAlignment(TEXT_ALIGN_LEFT);
+   display->setFont(ArialMT_Plain_24);
+  String team = "Team: " + ownTeam;
+  display->drawString(0 + x, 10 + y, team);
+  
+}
+void drawFrame4(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  // draw an xbm image.
+  // Please note that everything that should be transitioned
+  // needs to be drawn relative to x and y
+
+  display->setTextAlignment(TEXT_ALIGN_LEFT);
+  display->setFont(ArialMT_Plain_24);
+  
+  String Ammo = "Ammo: ";
+  Ammo.concat(bullets);
+  display->drawString(0 + x, 10 + y, Ammo);
+}
+
+FrameCallback frames[] = { drawFrame1, drawFrame2, drawFrame3,drawFrame4};
 
 void setup() {
   pinMode(kIrLed, OUTPUT);
@@ -90,7 +187,28 @@ void setup() {
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
   assert(irutils::lowLevelSanityCheck() == 0);
   FastLED.addLeds<WS2812B, ledPin, GRB>(leds, NUM_LEDS);
-  
+  leds[1] = CRGB::Purple;
+  leds[0] = CRGB::Green;
+  ui.setTargetFPS(20);
+
+  // You can change this to
+  // TOP, LEFT, BOTTOM, RIGHT
+  ui.setIndicatorPosition(BOTTOM);
+
+  // Defines where the first frame is located in the bar.
+  ui.setIndicatorDirection(LEFT_RIGHT);
+
+  // You can change the transition that is used
+  // SLIDE_LEFT, SLIDE_RIGHT, SLIDE_UP, SLIDE_DOWN
+  ui.setFrameAnimation(SLIDE_LEFT);
+
+  // Add frames
+  ui.setFrames(frames, 4);
+
+
+
+  // Initialising the UI will init the display too.
+  ui.init();
 
   Serial.printf("\n" D_STR_IRRECVDUMP_STARTUP "\n", kRecvPin);
 #if DECODE_HASH
@@ -118,6 +236,7 @@ void buzzerfun(int repeat){
   
 }
 
+
 String ChangeTeams(int teams){
   teams ++;
   if (teams == 5){
@@ -130,10 +249,13 @@ String ChangeTeams(int teams){
   {
     case 0:
       leds[1] = CRGB::Purple;
+      
       eigenteam = FFA;
       gun = FFAGUN;
       guns = 100;
       temp = eigenteam + gun;
+      ownTeam.clear();
+      ownTeam.concat("FFA");
       break;
     case 1:
       leds[1] = CRGB::Blue;
@@ -141,6 +263,8 @@ String ChangeTeams(int teams){
       gun = BlueGunx1;
       guns = 10;
       temp = eigenteam + gun;
+      ownTeam.clear();
+      ownTeam.concat("Blue");
       break;
     case 2:
       leds[1] = CRGB::Red;
@@ -148,6 +272,8 @@ String ChangeTeams(int teams){
       gun = RedGunx1;
       guns = 20;
       temp = eigenteam + gun;
+      ownTeam.clear();
+      ownTeam.concat("Red");
       break;
     case 3:
       leds[1] = CRGB::Green;
@@ -155,6 +281,8 @@ String ChangeTeams(int teams){
       gun = GreenGunx1;
       guns = 30;
       temp = eigenteam + gun;
+      ownTeam.clear();
+      ownTeam.concat("Green");
       break;
     case 4:
        leds[1] = CRGB::White;
@@ -162,6 +290,8 @@ String ChangeTeams(int teams){
       gun = WhiteGunx1;
       guns = 40;
       temp = eigenteam + gun;
+      ownTeam.clear();
+      ownTeam.concat("White");
       break;
     default:
       leds[1] = CRGB::Purple;
@@ -169,6 +299,8 @@ String ChangeTeams(int teams){
       gun = FFAGUN;
       guns = 100;
       temp = eigenteam + gun;
+      ownTeam.clear();
+      ownTeam.concat("FFA");
       break;
     }
     return temp;
@@ -203,9 +335,7 @@ void prepare_shot(String shot){ //this function prepares, and fires the shot, fi
   Serial.print("Shoot: ");
   Serial.println(temp);
   irsend.sendRaw(rawData,42,38);
-
-  
-
+  time_wait = bullet_type*10;
 }
 
 
@@ -292,6 +422,7 @@ void decodeData(uint16_t * Datass){ //this function is to "decode" the data, sin
   }
   
 }
+
 
 void changeGuns (){ //function that changes the gun type, it uses the switch method
   guns ++;
@@ -432,6 +563,7 @@ void changeGuns (){ //function that changes the gun type, it uses the switch met
 
 
 void loop() {
+  ui.update();
   FastLED.show();
   if (Health > 0) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
   {
@@ -446,17 +578,17 @@ void loop() {
       Serial.println(analogRead(Reload_Button));
 
     }
-    if (Health == 9)
+    if (Health <= 9)
     {
       leds[0] = CRGB::LimeGreen;
     }
-    if (Health == 6)
+    if (Health <= 6)
     {
       leds[0] = CRGB::Orange;
     }
-    if (Health == 3)
+    if (Health <= 3)
     {
-      leds[0] = CRGB::DarkRed;
+      leds[0] = CRGB::Red;
     }
     if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
@@ -483,6 +615,7 @@ void loop() {
       Serial.println(gun);
       Serial.print("team: ");
       Serial.println(eigenteam);
+      time_wait = 5; 
       
       
     }
@@ -495,7 +628,8 @@ void loop() {
       Serial.print("Gun ID: ");
       Serial.println(guns);
       Serial.print("Team: ");
-      Serial.println(eigenteam); 
+      Serial.println(eigenteam);
+      time_wait = 5; 
     }    
     
     
@@ -509,7 +643,7 @@ void loop() {
       yield();             // Feed the WDT (again)
       //String hit = resultToTimingInfo(&results);
     }
-    delay(200);
+    time_wait--;
   }
   delay(200);
   if (Health <= 0)
