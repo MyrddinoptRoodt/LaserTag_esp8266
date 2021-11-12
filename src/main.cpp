@@ -10,7 +10,8 @@
 #include <Wire.h>
 #include "SSD1306Wire.h"
 #include "OLEDDisplayUi.h"
-
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
 
 #define ledPin     2 //D4
 //#define COLOR_ORDER GRB
@@ -21,6 +22,8 @@
 #define LANG 786 // gemiddelde van veel dingen
 #define WiFi_Logo_width 60
 #define WiFi_Logo_height 36
+WiFiClient espClient;
+PubSubClient client(espClient);
 boolean connected = false;
 const uint8_t WiFi_Logo_bits[] PROGMEM = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8,
@@ -48,7 +51,7 @@ const uint8_t WiFi_Logo_bits[] PROGMEM = {
   0x00, 0x00, 0x80, 0xFF, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
-
+int timepast = 0;
 const uint32_t kBaudRate = 115200; //bitrate
 const uint16_t kCaptureBufferSize = 1024; 
 
@@ -115,13 +118,56 @@ int Health = 9; //you start with 9hp
 int bullet_type = bullet1x;
 int time_wait = 0;
 int gun_delay   = 10;
+const char* ssid = "NETGEAR";
+const char* password = "";
+const char* mqtt_server = "192.168.1.6";
+
+unsigned long lastMsg = 0;
+#define MSG_BUFFER_SIZE	(50)
+char msg[MSG_BUFFER_SIZE];
+int value = 0;
+
+void setup_wifi() {
+
+  delay(10);
+  // We start by connecting to a WiFi network
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  randomSeed(micros());
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+}
+
 
 void msOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
   display->setTextAlignment(TEXT_ALIGN_RIGHT);
   display->setFont(ArialMT_Plain_10);
   display->drawString(128, 0, String(millis()));
 }
-
+ 
 void drawFrame1(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
   // draw an xbm image.
   // Please note that everything that should be transitioned
@@ -175,6 +221,7 @@ void drawFrame4(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int1
 
 FrameCallback frames[] = { drawFrame1, drawFrame2, drawFrame3,drawFrame4};
 
+
 void setup() {
   pinMode(kIrLed, OUTPUT);
   digitalWrite(kIrLed,LOW);
@@ -189,7 +236,30 @@ void setup() {
   FastLED.addLeds<WS2812B, ledPin, GRB>(leds, NUM_LEDS);
   leds[1] = CRGB::Purple;
   leds[0] = CRGB::Green;
-  ui.setTargetFPS(20);
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+
+
+
+
+
+
+  // Initialising the UI will init the display too.
+  
+  Serial.printf("\n" D_STR_IRRECVDUMP_STARTUP "\n", kRecvPin);
+#if DECODE_HASH
+  // Ignore messages with less than minimum on or off pulses.
+  irrecv.setUnknownThreshold(kMinUnknownSize);
+#endif  // DECODE_HASH
+  irrecv.setTolerance(kTolerancePercentage);  // Override the default tolerance.
+  irrecv.enableIRIn();  // Start the receiver
+
+
+  //setup_wifi();
+  //client.setServer(mqtt_server, 1883);
+  //client.setCallback(callback);
+  ui.setTargetFPS(10);
 
   // You can change this to
   // TOP, LEFT, BOTTOM, RIGHT
@@ -204,20 +274,33 @@ void setup() {
 
   // Add frames
   ui.setFrames(frames, 4);
-
-
-
-  // Initialising the UI will init the display too.
   ui.init();
-
-  Serial.printf("\n" D_STR_IRRECVDUMP_STARTUP "\n", kRecvPin);
-#if DECODE_HASH
-  // Ignore messages with less than minimum on or off pulses.
-  irrecv.setUnknownThreshold(kMinUnknownSize);
-#endif  // DECODE_HASH
-  irrecv.setTolerance(kTolerancePercentage);  // Override the default tolerance.
-  irrecv.enableIRIn();  // Start the receiver
+  
 }
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Create a random client ID
+    String clientId = "ESP8266Client-01";
+    // Attempt to connect
+    if (client.connect(clientId.c_str())) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      client.publish("outTopic", "hello world");
+      // ... and resubscribe
+      client.subscribe("inTopic");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
 
 void buzzerfun(int repeat){
   int i = 0;
@@ -364,6 +447,24 @@ void get_damage(String temp){ //as the name sugests, this function stands in to 
   } 
   Serial.println(Health);
   Serial.println(temp);
+
+  snprintf (msg, MSG_BUFFER_SIZE, "Health #%ld", Health);
+  Serial.print("Publish message: ");
+  Serial.println(msg);
+  client.publish("Health", msg);
+  snprintf (msg, MSG_BUFFER_SIZE, "Bullets #%ld", bullets);
+  Serial.print("Publish message: ");
+  Serial.println(msg);
+  client.publish("Bullets", msg);
+    snprintf (msg, MSG_BUFFER_SIZE, "hit by #%ld", Health);
+  Serial.print("Publish message: ");
+  Serial.println(msg);
+  client.publish("HitBy", msg);
+    snprintf (msg, MSG_BUFFER_SIZE, "Clips #%ld", bullets);
+  Serial.print("Publish message: ");
+  Serial.println(msg);
+  client.publish("Clips", msg);
+  
 }
 
 void decodeData(uint16_t * Datass){ //this function is to "decode" the data, since it is encoded "raw"
@@ -563,8 +664,15 @@ void changeGuns (){ //function that changes the gun type, it uses the switch met
 
 
 void loop() {
+
   ui.update();
   FastLED.show();
+  if (!client.connected()) {
+    reconnect();
+  }
+   client.loop();
+
+  
   if (Health > 0) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
   {
     //int Reload_Button_Value = digitalRead(Reload_Button);
@@ -578,18 +686,29 @@ void loop() {
       Serial.println(analogRead(Reload_Button));
 
     }
-    if (Health <= 9)
+    switch (Health)
     {
-      leds[0] = CRGB::LimeGreen;
-    }
-    if (Health <= 6)
-    {
-      leds[0] = CRGB::Orange;
-    }
-    if (Health <= 3)
-    {
+    case 1:
+    case 2:
+    case 3:
       leds[0] = CRGB::Red;
+      break;
+    case 4:
+    case 5:
+    case 6:
+      leds[0] = CRGB::Orange;
+      break;
+    case 7:
+    case 8:
+    case 9:
+      leds[0] = CRGB::LimeGreen;
+      break;
+    default:
+      break;
+
     }
+    FastLED.show();
+
     if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
       if (bullets>=1){
@@ -648,13 +767,14 @@ void loop() {
   delay(200);
   if (Health <= 0)
   {
+    FastLED.clear();
     Serial.println("u dead m8");//this is the message you get when you die
-    leds[0] = CRGB (255,0,0);
+    
+    FastLED.clear();
+    delay(50);
+    leds[0] = CRGB::Red;
     FastLED.show();
-    delay(100  );
-
-    leds[0] = CRGB (0, 0, 0);
-    FastLED.show();
+    delay(50);
   }
 
 }
