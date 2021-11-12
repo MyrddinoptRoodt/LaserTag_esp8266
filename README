@@ -6,6 +6,8 @@ For this project we use a (LoLin) NodeMcu v3 (using the esp 8266)(in platformIO 
 Their github: https://github.com/crankyoldgit/IRremoteESP8266
 
 
+Since: 12/11/2021
+Added added Pubsubclient libary:    https://github.com/knolleary/pubsubclient 
 
 
 Since: 27/10/2021
