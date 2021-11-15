@@ -13,57 +13,27 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
-#define ledPin     2 //D4
-//#define COLOR_ORDER GRB
-#define CHIPSET     WS2811
-#define NUM_LEDS    2
+#define ledPin     2 //D4 The pin that Controlls the RGB LED's
 
-#define KORT 393
-#define LANG 786 // gemiddelde van veel dingen
-#define WiFi_Logo_width 60
-#define WiFi_Logo_height 36
-WiFiClient espClient;
-PubSubClient client(espClient);
-boolean connected = false;
-const uint8_t WiFi_Logo_bits[] PROGMEM = {
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xFF, 0x07, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0xE0, 0xFF, 0x1F, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0xFF,
-  0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC, 0xFF, 0xFF, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0xFE, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
-  0xFF, 0x03, 0x00, 0x00, 0x00, 0xFC, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00,
-  0x00, 0xFF, 0xFF, 0xFF, 0x07, 0xC0, 0x83, 0x01, 0x80, 0xFF, 0xFF, 0xFF,
-  0x01, 0x00, 0x07, 0x00, 0xC0, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x0C, 0x00,
-  0xC0, 0xFF, 0xFF, 0x7C, 0x00, 0x60, 0x0C, 0x00, 0xC0, 0x31, 0x46, 0x7C,
-  0xFC, 0x77, 0x08, 0x00, 0xE0, 0x23, 0xC6, 0x3C, 0xFC, 0x67, 0x18, 0x00,
-  0xE0, 0x23, 0xE4, 0x3F, 0x1C, 0x00, 0x18, 0x00, 0xE0, 0x23, 0x60, 0x3C,
-  0x1C, 0x70, 0x18, 0x00, 0xE0, 0x03, 0x60, 0x3C, 0x1C, 0x70, 0x18, 0x00,
-  0xE0, 0x07, 0x60, 0x3C, 0xFC, 0x73, 0x18, 0x00, 0xE0, 0x87, 0x70, 0x3C,
-  0xFC, 0x73, 0x18, 0x00, 0xE0, 0x87, 0x70, 0x3C, 0x1C, 0x70, 0x18, 0x00,
-  0xE0, 0x87, 0x70, 0x3C, 0x1C, 0x70, 0x18, 0x00, 0xE0, 0x8F, 0x71, 0x3C,
-  0x1C, 0x70, 0x18, 0x00, 0xC0, 0xFF, 0xFF, 0x3F, 0x00, 0x00, 0x08, 0x00,
-  0xC0, 0xFF, 0xFF, 0x1F, 0x00, 0x00, 0x0C, 0x00, 0x80, 0xFF, 0xFF, 0x1F,
-  0x00, 0x00, 0x06, 0x00, 0x80, 0xFF, 0xFF, 0x0F, 0x00, 0x00, 0x07, 0x00,
-  0x00, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0x01, 0x00, 0x00, 0xF8, 0xFF, 0xFF,
-  0xFF, 0x7F, 0x00, 0x00, 0x00, 0x00, 0xFE, 0xFF, 0xFF, 0x01, 0x00, 0x00,
-  0x00, 0x00, 0xFC, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0xFF,
-  0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0xFF, 0x1F, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x80, 0xFF, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  };
-int timepast = 0;
-const uint32_t kBaudRate = 115200; //bitrate
-const uint16_t kCaptureBufferSize = 1024; 
+#define CHIPSET     WS2811 //type of Individualy addressable LED's we use
+#define NUM_LEDS    2 // currently we use 2 RGB LED's
 
+
+WiFiClient espClient; //libary to use wifi
+PubSubClient client(espClient); //libary to use mqtt
+boolean connected = false; // a variable t
+
+const uint32_t kBaudRate = 115200; //bitrate 115200 is fairly standard in these type of projects.
+
+const uint16_t kCaptureBufferSize = 1024; //standard settings of the IRremoteESP8266 libary 
 const uint8_t kTimeout = 50;
 const uint16_t kMinUnknownSize = 12;
-
 const uint8_t kTolerancePercentage = kTolerance;  // kTolerance is normally 25%
 
 const uint16_t kIrLed = 15;  // ESP8266 GPIO pin to use. Recommended: 4 (D2) // using 15 (D8)
-const uint16_t kRecvPin = 14; // pin to receive ir data
-String ownTeam = "FFA";
-SSD1306Wire display(0x3c, SDA, SCL);
+const uint16_t kRecvPin = 14; // pin to receive ir data (D5)
+String ownTeam = "FFA";  //Defines the basic configurgiration
+SSD1306Wire display(0x3c, SDA, SCL); //configures the display (address and i²c) (the SDA = D2,  SCL = D1)
 OLEDDisplayUi ui     ( &display );
 CRGB leds[NUM_LEDS];
 IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, true);
@@ -95,11 +65,12 @@ String Green  =   "011";
 String White  =   "100";
 String FFA    =   "101";
 String eigenteam = "101";
+// ammo amounts gun epending on gun type
 int bullet1x = 6;
 int bullet2x = 3;
 int bullet3x = 1;
 
-
+//setu up for default team and gun
 int teams = 0;
 String gun = FFAGUN;
 int guns = 100;
@@ -116,17 +87,21 @@ const uint8_t Reload_Button = A0;//reload button on A0
 int bullets = 6;//amount of bullets for default gun
 int Health = 9; //you start with 9hp
 int bullet_type = bullet1x;
-int time_wait = 0;
-int gun_delay   = 10;
+int time_wait = 0; //cooldown for actions
+int gun_delay   = 10; //default cooldown for default gun
+
+//wifi setup
 const char* ssid = "NETGEAR";
 const char* password = "";
 const char* mqtt_server = "192.168.1.6";
 
+//mqtt setup (part 1)
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE	(50)
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
+//wifi loading funcion
 void setup_wifi() {
 
   delay(10);
@@ -151,6 +126,7 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
+//mqtt call back function (this function should be used to pull data from the server)
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -161,13 +137,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 }
 
-
+//display functions
 void msOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
   display->setTextAlignment(TEXT_ALIGN_RIGHT);
   display->setFont(ArialMT_Plain_10);
   display->drawString(128, 0, String(millis()));
 }
- 
 void drawFrame1(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
   // draw an xbm image.
   // Please note that everything that should be transitioned
@@ -218,7 +193,7 @@ void drawFrame4(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int1
   Ammo.concat(bullets);
   display->drawString(0 + x, 10 + y, Ammo);
 }
-
+//forms an array of the frames
 FrameCallback frames[] = { drawFrame1, drawFrame2, drawFrame3,drawFrame4};
 
 
@@ -278,6 +253,7 @@ void setup() {
   
 }
 
+//function to keep mqtt connection alive
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
@@ -301,7 +277,7 @@ void reconnect() {
   }
 }
 
-
+//function to output sound please change this to something less annoying
 void buzzerfun(int repeat){
   int i = 0;
   while (i < repeat*2)
@@ -319,7 +295,7 @@ void buzzerfun(int repeat){
   
 }
 
-
+//change teams function
 String ChangeTeams(int teams){
   teams ++;
   if (teams == 5){
@@ -387,11 +363,8 @@ String ChangeTeams(int teams){
       break;
     }
     return temp;
-      
-  //Team = UsableTeams[TeamIndex];
-  
-
 }
+
 
 void prepare_shot(String shot){ //this function prepares, and fires the shot, first it will create a string to send in binary, then it will translate the string to a raw array, wich will be send as is
   String list = "01";
@@ -410,18 +383,14 @@ void prepare_shot(String shot){ //this function prepares, and fires the shot, fi
       rawData[array_place] = 393;
       array_place++;
       temp = temp + 786;
-      
-    }
+          }
     i++;
   }
-  
-  Serial.print("Shoot: ");
+    Serial.print("Shoot: ");
   Serial.println(temp);
   irsend.sendRaw(rawData,42,38);
   time_wait = bullet_type*10;
 }
-
-
 
 
 void get_damage(String temp){ //as the name sugests, this function stands in to calculate the received damage, it also calls the buzzer funcion for audibel feedback when shot
@@ -686,7 +655,7 @@ void loop() {
       Serial.println(analogRead(Reload_Button));
 
     }
-    switch (Health)
+    switch (Health)//just a check to change the led colour depenging on the remaining health points
     {
     case 1:
     case 2:
@@ -765,7 +734,7 @@ void loop() {
     time_wait--;
   }
   delay(200);
-  if (Health <= 0)
+  if (Health <= 0) //this part runs if the health points run out.
   {
     FastLED.clear();
     Serial.println("u dead m8");//this is the message you get when you die
