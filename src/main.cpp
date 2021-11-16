@@ -475,7 +475,9 @@ void decodeData(uint16_t * Datass){ //this function is to "decode" the data, sin
     if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != FFA)) 
     // if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam) and (eigenteam != FFA)) 
     {
-      get_damage(binairy_code.substring(15,17));
+      if ((temp != eigenteam) and (eigenteam != FFA)){
+        get_damage(binairy_code.substring(15,17));
+      }
       b = false;
     }
     if (temp == FFA)
@@ -486,11 +488,8 @@ void decodeData(uint16_t * Datass){ //this function is to "decode" the data, sin
       }
       b = false;
     }
-    
     b = false;
-  
   }
-  
 }
 
 
