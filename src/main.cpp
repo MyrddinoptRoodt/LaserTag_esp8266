@@ -659,22 +659,23 @@ void loop() {
     case 2:
     case 3:
       leds[0] = CRGB::Red;
-      break;
+      FastLED.show();
+      
     case 4:
     case 5:
     case 6:
       leds[0] = CRGB::Orange;
-      break;
+      FastLED.show();
+      
     case 7:
     case 8:
     case 9:
       leds[0] = CRGB::LimeGreen;
-      break;
+      FastLED.show();
+      
     default:
       break;
-
     }
-    FastLED.show();
 
     if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
