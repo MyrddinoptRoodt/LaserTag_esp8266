@@ -80,9 +80,9 @@ String Damagex2   = "10";
 String Damagex3   = "11";
 int buzzer = 0;  //  pin D3
 const uint16_t ChangeTeams_Button = 12; //d6
-int button_Shoot = 13;    // pushbutton connected to digital pin D4
+const uint16_t button_Shoot = 13;    // pushbutton connected to digital pin D7
 int val = 0;      // variable to store the read value
-const uint8_t ChangeGuns_Button = 16;//D3 button to change the gun type
+const uint8_t ChangeGuns_Button = 16;//D0 button to change the gun type
 const uint8_t Reload_Button = A0;//reload button on A0 
 int bullets = 6;//amount of bullets for default gun
 int Health = 9; //you start with 9hp
@@ -231,9 +231,7 @@ void setup() {
   irrecv.enableIRIn();  // Start the receiver
 
 
-  //setup_wifi();
-  //client.setServer(mqtt_server, 1883);
-  //client.setCallback(callback);
+
   ui.setTargetFPS(10);
 
   // You can change this to
@@ -344,7 +342,7 @@ String ChangeTeams(int teams){
       ownTeam.concat("Green");
       break;
     case 4:
-       leds[1] = CRGB::White;
+      leds[1] = CRGB::White;
       eigenteam = White;
       gun = WhiteGunx1;
       guns = 40;
@@ -652,6 +650,7 @@ void loop() {
       Serial.print("reload gun: ");
       Serial.println(bullets);
       Serial.println(analogRead(Reload_Button));
+      
 
     }
     switch (Health)//just a check to change the led colour depenging on the remaining health points
@@ -744,5 +743,4 @@ void loop() {
     FastLED.show();
     delay(50);
   }
-
 }
