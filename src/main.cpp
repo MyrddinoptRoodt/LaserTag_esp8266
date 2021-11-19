@@ -65,6 +65,8 @@ String Green  =   "011";
 String White  =   "100";
 String FFA    =   "101";
 String eigenteam = "101";
+
+int Totalbullets = 0;
 // ammo amounts gun epending on gun type
 int bullet1x = 6;
 int bullet2x = 3;
@@ -415,7 +417,7 @@ void get_damage(String temp){ //as the name sugests, this function stands in to 
   Serial.println(Health);
   Serial.println(temp);
 
-  snprintf (msg, MSG_BUFFER_SIZE, "Health #%ld", Health);
+  snprintf (msg, MSG_BUFFER_SIZE, "#%i#Health #%ld",Totalbullets, Health);
   Serial.print("Publish message: ");
   Serial.println(msg);
   client.publish("Health", msg);
@@ -660,18 +662,23 @@ void loop() {
     case 3:
       leds[0] = CRGB::Red;
       FastLED.show();
+      delay(10);
+      return;
       
     case 4:
     case 5:
     case 6:
       leds[0] = CRGB::Orange;
       FastLED.show();
-      
+      delay(10);
+      return;      
     case 7:
     case 8:
     case 9:
       leds[0] = CRGB::LimeGreen;
       FastLED.show();
+      delay(10);
+      return;
       
     default:
       break;
@@ -682,6 +689,7 @@ void loop() {
       if (bullets>=1){
         prepare_shot(gun);
         bullets--;
+        Totalbullets++;
         Serial.print("Remaining bullets: ");
         Serial.println(bullets);
         buzzerfun(2);
