@@ -12,11 +12,19 @@
 #include "OLEDDisplayUi.h"
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include <iostream>
 
 #define ledPin     2 //D4 The pin that Controlls the RGB LED's
 
 #define CHIPSET     WS2811 //type of Individualy addressable LED's we use
 #define NUM_LEDS    2 // currently we use 2 RGB LED's
+
+String Id = "0001"; //Idin binair
+uint16_t idValue[] = {1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 393  , 393   ,393    ,786};//fill th ID inin the array
+//uint16_t idValue[] = {1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4};
+
+//array of enemies
+char evil[] = {"0001,0002,0003,0004"};
 
 
 WiFiClient espClient; //libary to use wifi
@@ -58,6 +66,7 @@ String WhiteGunx1   = "00000100 00000001 00001001";
 String WhiteGunx2   = "00000100 00000010 00001011";
 String WhiteGunx3   = "00000100 00000011 00001100";
 String FFAGUN       = "00000101 00000001 00001100";
+String Gun_1        = "00000111 00000001 00000001";
 //codes for the teams
 String Blue   =   "001";
 String Red    =   "010";
@@ -69,6 +78,8 @@ String eigenteam = "101";
 int bullet1x = 6;
 int bullet2x = 3;
 int bullet3x = 1;
+int Total_Bullets = 0;
+int Time_out = 10;
 
 //setu up for default team and gun
 int teams = 0;
@@ -195,6 +206,7 @@ void drawFrame4(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int1
 }
 //forms an array of the frames
 FrameCallback frames[] = { drawFrame1, drawFrame2, drawFrame3,drawFrame4};
+
 
 
 void setup() {
@@ -384,11 +396,18 @@ void prepare_shot(String shot){ //this function prepares, and fires the shot, fi
           }
     i++;
   }
-    Serial.print("Shoot: ");
+  
+  Serial.print("Shoot: ");
   Serial.println(temp);
   irsend.sendRaw(rawData,42,38);
+  if (connected){
+    delay(10);
+    irsend.sendRaw(idValue,21,38);
+  }
   time_wait = bullet_type*10;
 }
+
+
 
 
 void get_damage(String temp){ //as the name sugests, this function stands in to calculate the received damage, it also calls the buzzer funcion for audibel feedback when shot
@@ -414,80 +433,122 @@ void get_damage(String temp){ //as the name sugests, this function stands in to 
   } 
   Serial.println(Health);
   Serial.println(temp);
-
-  snprintf (msg, MSG_BUFFER_SIZE, "Health #%ld", Health);
-  Serial.print("Publish message: ");
-  Serial.println(msg);
-  client.publish("Health", msg);
-  snprintf (msg, MSG_BUFFER_SIZE, "Bullets #%ld", bullets);
-  Serial.print("Publish message: ");
-  Serial.println(msg);
-  client.publish("Bullets", msg);
+  if (connected)
+  { 
+     
+    snprintf (msg, MSG_BUFFER_SIZE, "Id = #%1 Health #%1",bullets, Health);
+    Serial.println(msg);
+    client.publish("Health",msg);
+    Serial.print("Publish message: ");
+    Serial.println(msg);
+    client.publish("Health", msg);
+    snprintf (msg, MSG_BUFFER_SIZE, "Bullets #%ld", bullets);
+    Serial.print("Publish message: ");
+    Serial.println(msg);
+    client.publish("Bullets", msg);
     snprintf (msg, MSG_BUFFER_SIZE, "hit by #%ld", Health);
-  Serial.print("Publish message: ");
-  Serial.println(msg);
-  client.publish("HitBy", msg);
-    snprintf (msg, MSG_BUFFER_SIZE, "Clips #%ld", bullets);
-  Serial.print("Publish message: ");
-  Serial.println(msg);
-  client.publish("Clips", msg);
-  
+    Serial.print("Publish message: ");
+    Serial.println(msg);
+    client.publish("HitBy", msg);
+    
+    snprintf (msg, MSG_BUFFER_SIZE, "%1 Totalshots #%2",Health,Total_Bullets);
+    Serial.print("Publish message: ");
+    Serial.println(msg);
+    client.publish("TotalBulletsUsed", msg);
+  } 
 }
 
 void decodeData(uint16_t * Datass){ //this function is to "decode" the data, since it is encoded "raw"
-  String binairy_code = "";
-  int i = 17;
-  int iteration = 1;
-  Serial.print("Eigen team: ");
-  Serial.println(eigenteam);
-  while (i<41) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
-  {
-   String bin_old = binairy_code;
-   uint16_t value = Datass[i]; 
-   if (value > 600)
-   {
-     binairy_code = bin_old + "1";
-   }
-   else {
-     binairy_code = bin_old + "0";
-   }
-   if ((iteration%8 == 0)){
-     String bin_old = binairy_code;
-     binairy_code = bin_old + " ";
-   }
-   iteration++;
-   i++;
-  }
-  Serial.print("code: ");
-  Serial.println(binairy_code);
-  Serial.print("code damage: "); //this gets a substring which contain the 'damage' digets to be printed, this will be seen again in the next short while
-  Serial.println(binairy_code.substring(15,17));
-  bool b = true; 
-  while (b)
-  {
-    
-    String temp = binairy_code.substring(5,8); //this gets the team value from the string
-    String damage = binairy_code.substring(15,17);//this (once again) will remember the damage value
-    Serial.println(damage);
-    Serial.println(temp);
-    if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != FFA)) 
-    // if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam) and (eigenteam != FFA)) 
+  if (Datass[42]){
+
+    String binairy_code = "";
+    int i = 17;
+    int iteration = 1;
+    Serial.print("Eigen team: ");
+    Serial.println(eigenteam);
+    while (i<41) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
     {
-      if ((temp != eigenteam) and (eigenteam != FFA)){
-        get_damage(binairy_code.substring(15,17));
-      }
-      b = false;
-    }
-    if (temp == FFA)
-    {
-      if (eigenteam == FFA)
+      String bin_old = binairy_code;
+      uint16_t value = Datass[i]; 
+      if (value > 600)
       {
+        binairy_code = bin_old + "1";
+      }
+      else {
+        binairy_code = bin_old + "0";
+      }
+      if ((iteration%8 == 0)){
+        String bin_old = binairy_code;
+        binairy_code = bin_old + " ";
+      }
+      iteration++;
+      i++;
+    }
+    Serial.print("code: ");
+    Serial.println(binairy_code);
+    Serial.print("code damage: "); //this gets a substring which contain the 'damage' digets to be printed, this will be seen again in the next short while
+    Serial.println(binairy_code.substring(15,17));
+    bool b = true; 
+    while (b)
+    {
+    
+      String temp = binairy_code.substring(5,8); //this gets the team value from the string
+      String damage = binairy_code.substring(15,17);//this (once again) will remember the damage value
+      Serial.println(damage);
+      Serial.println(temp);
+      if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != FFA)) 
+    // if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam) and (eigenteam != FFA)) 
+      {
+        if ((temp != eigenteam) and (eigenteam != FFA)){
+          get_damage(binairy_code.substring(15,17));
+        }
+        b = false;
+      }
+      if (temp == FFA)
+      {
+        if (eigenteam == FFA)
+        {
         get_damage(damage);
+        }
+        b = false;
       }
       b = false;
     }
-    b = false;
   }
+  else if (Datass[21])
+  {
+    String binairy_code = "";
+    int i = 17;
+    int iteration = 1;
+    Serial.print("Eigen team: ");
+    Serial.println(eigenteam);
+    while (i<20) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
+    {
+      String bin_old = binairy_code;
+      uint16_t value = Datass[i]; 
+      if (value > 600)
+      {
+        binairy_code = bin_old + "1";
+      }
+      else {
+        binairy_code = bin_old + "0";
+      }
+      if ((iteration%8 == 0)){
+        String bin_old = binairy_code;
+        binairy_code = bin_old + " ";
+      }
+      iteration++;
+      i++;
+    }
+    String temp = binairy_code.substring(17,20);
+    Serial.println(temp);
+    snprintf (msg, MSG_BUFFER_SIZE, "#0001:#%1",temp);
+    Serial.print("Publish message: ");
+    Serial.println(msg);
+    client.publish("Shotby", msg);
+  }
+  
+
 }
 
 
@@ -633,8 +694,14 @@ void loop() {
 
   ui.update();
   FastLED.show();
+  while (connected)
+  {
+    /* code */
+  
+  
   if (!client.connected()) {
     reconnect();
+  
   }
    client.loop();
 
@@ -660,21 +727,23 @@ void loop() {
     case 3:
       leds[0] = CRGB::Red;
       FastLED.show();
+      return;
       
     case 4:
     case 5:
     case 6:
       leds[0] = CRGB::Orange;
       FastLED.show();
-      
+      return;
     case 7:
     case 8:
     case 9:
       leds[0] = CRGB::LimeGreen;
       FastLED.show();
+      return;
       
     default:
-      break;
+      return;
     }
 
     if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
@@ -743,5 +812,6 @@ void loop() {
     leds[0] = CRGB::Red;
     FastLED.show();
     delay(50);
+  }
   }
 }
