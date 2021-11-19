@@ -425,15 +425,43 @@ void get_damage(String temp){ //as the name sugests, this function stands in to 
   Serial.print("Publish message: ");
   Serial.println(msg);
   client.publish("Bullets", msg);
-    snprintf (msg, MSG_BUFFER_SIZE, "hit by #%ld", Health);
+  snprintf (msg, MSG_BUFFER_SIZE, "hit by #%ld", Health);
   Serial.print("Publish message: ");
   Serial.println(msg);
   client.publish("HitBy", msg);
-    snprintf (msg, MSG_BUFFER_SIZE, "Clips #%ld", bullets);
+   snprintf (msg, MSG_BUFFER_SIZE, "Clips #%ld", bullets);
   Serial.print("Publish message: ");
   Serial.println(msg);
   client.publish("Clips", msg);
-  
+  switch (Health)//just a check to change the led colour depenging on the remaining health points
+  {
+    case 1:
+    case 2:
+    case 3:
+      leds[0] = CRGB::Red;
+      FastLED.show();
+      delay(10);
+    
+      
+    case 4:
+    case 5:
+    case 6:
+      leds[0] = CRGB::Orange;
+      FastLED.show();
+      delay(10);
+      break;
+           
+    case 7:
+    case 8:
+    case 9:
+      leds[0] = CRGB::LimeGreen;
+      FastLED.show();
+      delay(10);
+      break;
+      
+    default:
+      break;
+    }
 }
 
 void decodeData(uint16_t * Datass){ //this function is to "decode" the data, since it is encoded "raw"
@@ -655,34 +683,7 @@ void loop() {
       
 
     }
-    switch (Health)//just a check to change the led colour depenging on the remaining health points
-    {
-    case 1:
-    case 2:
-    case 3:
-      leds[0] = CRGB::Red;
-      FastLED.show();
-      delay(10);
-      return;
-      
-    case 4:
-    case 5:
-    case 6:
-      leds[0] = CRGB::Orange;
-      FastLED.show();
-      delay(10);
-      return;      
-    case 7:
-    case 8:
-    case 9:
-      leds[0] = CRGB::LimeGreen;
-      FastLED.show();
-      delay(10);
-      return;
-      
-    default:
-      break;
-    }
+
 
     if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
