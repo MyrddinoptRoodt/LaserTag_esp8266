@@ -70,8 +70,6 @@ int bullet1x = 6;
 int bullet2x = 3;
 int bullet3x = 1;
 
-u_int bulletsFired = 0;
-
 //setu up for default team and gun
 int teams = 0;
 String gun = FFAGUN;
@@ -662,24 +660,22 @@ void loop() {
     case 3:
       leds[0] = CRGB::Red;
       FastLED.show();
-      break;
+      
     case 4:
     case 5:
     case 6:
       leds[0] = CRGB::Orange;
       FastLED.show();
-      break;
+      
     case 7:
     case 8:
     case 9:
       leds[0] = CRGB::LimeGreen;
       FastLED.show();
-      break;
+      
     default:
       break;
-
     }
-    FastLED.show();
 
     if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
@@ -710,7 +706,7 @@ void loop() {
       
       
     }
-    if ((digitalRead(ChangeGuns_Button) == HIGH) and (eigenteam != FFA)) //reads the change guns pin, and will attempt to change 'gun type' if it is possible in the given team
+    if ((digitalRead(ChangeGuns_Button) == HIGH)and (eigenteam != FFA)) //reads the change guns pin, and will attempt to change 'gun type' if it is possible in the given team
     {
       changeGuns();
            
