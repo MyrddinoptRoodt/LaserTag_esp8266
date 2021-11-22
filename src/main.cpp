@@ -107,7 +107,7 @@ int value = 0;
 
 int arrayPosition = 0;
 char Idarr[9]="00000000";
-uint8_t Id = 1;
+int Id = 1;
 
 //wifi loading funcion
 void setup_wifi() {
