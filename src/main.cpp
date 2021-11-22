@@ -13,6 +13,8 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
+#define BIT(n,i) (n>>i&1)
+
 #define ledPin     2 //D4 The pin that Controlls the RGB LED's
 
 #define CHIPSET     WS2811 //type of Individualy addressable LED's we use
@@ -103,7 +105,9 @@ unsigned long lastMsg = 0;
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
-String Id = "0001";
+int arrayPosition = 0;
+char Idarr[9]="00000000";
+uint8_t Id = 1;
 
 //wifi loading funcion
 void setup_wifi() {
@@ -215,6 +219,17 @@ void setup() {
   FastLED.addLeds<WS2812B, ledPin, GRB>(leds, NUM_LEDS);
   leds[1] = CRGB::Purple;
   leds[0] = CRGB::Green;
+  for(int a=128; a>=1; a=a/2){      // This loop will start at 128, then 64, then 32, etc.
+    if((Id-a)>=0){         // This checks if the Int is big enough for the Bit to be a '1'
+      Idarr[arrayPosition]='1';  // Assigns a '1' into that Array position.
+      Id-=a;}              // Subracts from the Int.
+    else{
+      Idarr[arrayPosition]='0';} // The Int was not big enough, therefore the Bit is a '0'
+      arrayPosition++;                // Move one Character to the right in the Array.
+    }
+
+  Serial.println(Idarr);
+  
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
@@ -254,6 +269,7 @@ void setup() {
   ui.init();
   
 }
+String IdShoot = Idarr;
 
 //function to keep mqtt connection alive
 void reconnect() {
@@ -391,7 +407,6 @@ void prepare_shot(String shot){ //this function prepares, and fires the shot, fi
     Serial.print("Shoot: ");
   Serial.println(temp);
   irsend.sendRaw(rawData,42,38);
-  time_wait = bullet_type*10;
 }
 
 
@@ -666,8 +681,6 @@ void loop() {
       Serial.print("reload gun: ");
       Serial.println(bullets);
       Serial.println(analogRead(Reload_Button));
-      
-
     }
 
 
@@ -677,9 +690,11 @@ void loop() {
         prepare_shot(gun);
         bullets--;
         Totalbullets++;
+        prepare_shot(IdShoot);
         Serial.print("Remaining bullets: ");
         Serial.println(bullets);
         buzzerfun(2);
+        time_wait = bullet_type*10;
       }
     }
     if (digitalRead(ChangeTeams_Button) == HIGH) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
