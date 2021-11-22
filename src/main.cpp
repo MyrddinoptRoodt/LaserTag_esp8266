@@ -103,6 +103,8 @@ unsigned long lastMsg = 0;
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
+String Id = "0001";
+
 //wifi loading funcion
 void setup_wifi() {
 
@@ -417,51 +419,35 @@ void get_damage(String temp){ //as the name sugests, this function stands in to 
   Serial.println(Health);
   Serial.println(temp);
 
-  snprintf (msg, MSG_BUFFER_SIZE, "#%i#Health #%ld",Totalbullets, Health);
+  snprintf (msg, MSG_BUFFER_SIZE, "%i#Health#%ld",Id, Health);
   Serial.print("Publish message: ");
   Serial.println(msg);
   client.publish("Health", msg);
-  snprintf (msg, MSG_BUFFER_SIZE, "Bullets #%ld", bullets);
+  snprintf (msg, MSG_BUFFER_SIZE, "%i#Bullets#%ld",Id, bullets);
   Serial.print("Publish message: ");
   Serial.println(msg);
   client.publish("Bullets", msg);
-  snprintf (msg, MSG_BUFFER_SIZE, "hit by #%ld", Health);
+  snprintf (msg, MSG_BUFFER_SIZE, "%i#HitBy#%ld",Id, Health);
   Serial.print("Publish message: ");
   Serial.println(msg);
   client.publish("HitBy", msg);
-   snprintf (msg, MSG_BUFFER_SIZE, "Clips #%ld", bullets);
+   snprintf (msg, MSG_BUFFER_SIZE, "%i#TotalBullets#%ld",Id, Totalbullets);
   Serial.print("Publish message: ");
   Serial.println(msg);
-  client.publish("Clips", msg);
-  switch (Health)//just a check to change the led colour depenging on the remaining health points
+  client.publish("Totalbullets", msg);
+  if (Health > 6)
   {
-    case 1:
-    case 2:
-    case 3:
-      leds[0] = CRGB::Red;
+      leds[0].LimeGreen;
       FastLED.show();
-      delay(10);
-    
-      
-    case 4:
-    case 5:
-    case 6:
-      leds[0] = CRGB::Orange;
-      FastLED.show();
-      delay(10);
-      break;
-           
-    case 7:
-    case 8:
-    case 9:
-      leds[0] = CRGB::LimeGreen;
-      FastLED.show();
-      delay(10);
-      break;
-      
-    default:
-      break;
-    }
+  }else if ((Health>3) && (Health<=6))
+  {
+    leds[0].Orange;
+    FastLED.show();
+  }else if ((Health>0)&&(Health<=3))
+  {
+    leds[0].Red;
+    FastLED.show();
+  }
 }
 
 void decodeData(uint16_t * Datass){ //this function is to "decode" the data, since it is encoded "raw"
