@@ -34,7 +34,7 @@ const uint8_t kTolerancePercentage = kTolerance;  // kTolerance is normally 25%
 
 const uint16_t kIrLed = 15;  // ESP8266 GPIO pin to use. Recommended: 4 (D2) // using 15 (D8)
 const uint16_t kRecvPin = 14; // pin to receive ir data (D5)
-String ownTeam = "FFA";  //Defines the basic configurgiration
+String ownTeam = "White";  //Defines the basic configurgiration
 SSD1306Wire display(0x3c, SDA, SCL); //configures the display (address and i²c) (the SDA = D2,  SCL = D1)
 OLEDDisplayUi ui     ( &display );
 CRGB leds[NUM_LEDS];
@@ -66,7 +66,7 @@ String Red    =   "010";
 String Green  =   "011";
 String White  =   "100";
 String FFA    =   "101";
-String eigenteam = "101";
+String eigenteam = "100";
 
 int Totalbullets = 0;
 // ammo amounts gun epending on gun type
@@ -75,9 +75,9 @@ int bullet2x = 3;
 int bullet3x = 1;
 
 //setu up for default team and gun
-int teams = 0;
-String gun = FFAGUN;
-int guns = 100;
+int teams = 4;
+String gun = WhiteGunx1;
+int guns = 40;
 //codes for the damage
 String Damagex1   = "01";
 String Damagex2   = "10";
@@ -242,11 +242,12 @@ void setup() {
   pinMode(ChangeGuns_Button,INPUT);
   pinMode(Reload_Button,INPUT);
   pinMode(ChangeTeams_Button, INPUT);
+  
   irsend.begin();
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
   assert(irutils::lowLevelSanityCheck() == 0);
   FastLED.addLeds<WS2812B, ledPin, GRB>(leds, NUM_LEDS);
-  leds[1] = CRGB::Purple;
+  leds[1] = CRGB::White;
   leds[0] = CRGB::Green;
 
   
@@ -341,6 +342,7 @@ void buzzerfun(int repeat){
 //change teams function
 String ChangeTeams(int teams){
   teams ++;
+  Serial.println("change teams");
   if (teams == 5){
     teams = 0;
     gun.clear();
