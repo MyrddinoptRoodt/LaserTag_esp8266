@@ -23,7 +23,7 @@
 
 WiFiClient espClient; //libary to use wifi
 PubSubClient client(espClient); //libary to use mqtt
-boolean connected = false; // a variable t
+boolean connected = true; // a variable t
 
 const uint32_t kBaudRate = 115200; //bitrate 115200 is fairly standard in these type of projects.
 
@@ -767,11 +767,11 @@ void loop() {
       bullets = bullet_type;
       Serial.print("reload gun: ");
       Serial.println(bullets);
-      Serial.println(analogRead(Reload_Button));
+      Serial.println(analogRead(Reload_Button) (connected));
     }
 
 
-    if ((digitalRead(button_Shoot) == HIGH)) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
+    if ((digitalRead(button_Shoot) == HIGH) and (connected)) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
       if (bullets>=1){
         prepare_shot(gun);
@@ -784,7 +784,7 @@ void loop() {
         time_wait = bullet_type*10;
       }
     }
-    if (digitalRead((ChangeTeams_Button) == HIGH)) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
+    if (digitalRead((ChangeTeams_Button) == HIGH)and (connected)) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
     {
       Serial.println("change team");
       String tijdelijk = ChangeTeams(teams);
@@ -803,7 +803,7 @@ void loop() {
       
       
     }
-    if (connected){
+    if (!connected){
       if ((digitalRead(ChangeGuns_Button) == HIGH)and (eigenteam != FFA)) //reads the change guns pin, and will attempt to change 'gun type' if it is possible in the given team
       {
         changeGuns();
