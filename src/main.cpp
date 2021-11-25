@@ -110,6 +110,20 @@ char Idarr[9]="00000000";
 int Id = 1;
 
 
+String translate_int(int id){
+  int arrayPosition = 0;
+  char Idarr[9]="00000000";
+  for(int a=128; a>=1; a=a/2){      // This loop will start at 128, then 64, then 32, etc.
+    if((id-a)>=0){         // This checks if the Int is big enough for the Bit to be a '1'
+      Idarr[arrayPosition]='1';  // Assigns a '1' into that Array position.
+      id-=a;              // Subracts from the Int.
+      }
+    else{
+      Idarr[arrayPosition]='0';} // The Int was not big enough, therefore the Bit is a '0'
+    arrayPosition++;                // Move one Character to the right in the Array.
+    }
+  return Idarr;
+}
 //wifi loading funcion
 void setup_wifi() {
 
@@ -140,9 +154,23 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
+  char test[(length + 1)];
   for (int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
+    test[i] = payload[i];
   }
+  int id1, id2, id3;
+  int pos1, pos2, pos3;
+  int n = sscanf(test, "%d%d%d", &id1, &id2, &id3);
+  if (id1 = Id)
+  {
+    Serial.print("Topic =");
+    Serial.println(id1);
+    Serial.print("Data =");
+    Serial.println(id1);
+  }
+  
+
   Serial.println();
 }
 
@@ -220,14 +248,7 @@ void setup() {
   FastLED.addLeds<WS2812B, ledPin, GRB>(leds, NUM_LEDS);
   leds[1] = CRGB::Purple;
   leds[0] = CRGB::Green;
-  for(int a=128; a>=1; a=a/2){      // This loop will start at 128, then 64, then 32, etc.
-    if((Id-a)>=0){         // This checks if the Int is big enough for the Bit to be a '1'
-      Idarr[arrayPosition]='1';  // Assigns a '1' into that Array position.
-      Id-=a;}              // Subracts from the Int.
-    else{
-      Idarr[arrayPosition]='0';} // The Int was not big enough, therefore the Bit is a '0'
-    arrayPosition++;                // Move one Character to the right in the Array.
-    }
+
   
   setup_wifi();
   client.setServer(mqtt_server, 1883);
@@ -470,6 +491,11 @@ void get_damage(String temp){ //as the name sugests, this function stands in to 
 }
 
 void decodeData(uint16_t * Datass){ //this function is to "decode" the data, since it is encoded "raw"
+  String binairy_code = "";
+  int i = 17;
+  int iteration = 1;
+  Serial.print("Eigen team: ");
+  Serial.println(eigenteam);
   if (connected)
   {
     String binairy_code = "";
@@ -480,22 +506,22 @@ void decodeData(uint16_t * Datass){ //this function is to "decode" the data, sin
   
     while (i<41) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
     {
-    String bin_old = binairy_code;
-    uint16_t value = Datass[i]; 
-    if (value > 600)
-    {
-      binairy_code = bin_old + "1";
-    }
-    else {
-      binairy_code = bin_old + "0";
-    }
-    if ((iteration%8 == 0)){
       String bin_old = binairy_code;
-      binairy_code = bin_old + " ";
-    }
-    iteration++;
-    i++;
-    }
+      uint16_t value = Datass[i]; 
+      if (value > 600)
+      {
+        binairy_code = bin_old + "1";
+      }
+      else {
+        binairy_code = bin_old + "0";
+      }
+      if ((iteration%8 == 0)){
+        String bin_old = binairy_code;
+        binairy_code = bin_old + " ";
+      }
+      iteration++;
+      i++;
+      }
     Serial.print("code: ");
     Serial.println(binairy_code);
     Serial.print("code damage: "); //this gets a substring which contain the 'damage' digets to be printed, this will be seen again in the next short while
@@ -531,11 +557,55 @@ void decodeData(uint16_t * Datass){ //this function is to "decode" the data, sin
     for (size_t i = 0; i < 26; i++)
     {
       Serial.println("test");
+      String bin_old = binairy_code;
+      uint16_t value = Datass[i]; 
+      if (value > 600)
+      {
+        binairy_code = bin_old + "1";
+      }
+      else {
+        binairy_code = bin_old + "0";
+      }
+      if ((iteration%8 == 0)){
+        String bin_old = binairy_code;
+        binairy_code = bin_old + " ";
+      }
+      iteration++;
+      i++;
+      }
+    Serial.print("code: ");
+    Serial.println(binairy_code);
+    Serial.print("code damage: "); //this gets a substring which contain the 'damage' digets to be printed, this will be seen again in the next short while
+    Serial.println(binairy_code.substring(15,17));
+    bool b = true; 
+    while (b)
+    {
+      String temp = binairy_code.substring(5,8); //this gets the team value from the string
+      String damage = binairy_code.substring(15,17);//this (once again) will remember the damage value
+      Serial.println(damage);
+      Serial.println(temp);
+      if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != FFA)) 
+      // if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam) and (eigenteam != FFA)) 
+      {
+        if ((temp != eigenteam) and (eigenteam != FFA)){
+          get_damage(binairy_code.substring(15,17));
+        }
+        b = false;
+      }
+      if (temp == FFA)
+      {
+        if (eigenteam == FFA)
+        {
+          get_damage(damage);
+        }
+        b = false;
+      }
+      b = false;
     }
-    
   }
-  
 }
+  
+
 
 
 void changeGuns (){ //function that changes the gun type, it uses the switch method
