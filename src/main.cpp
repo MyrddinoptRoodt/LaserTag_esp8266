@@ -767,11 +767,11 @@ void loop() {
       bullets = bullet_type;
       Serial.print("reload gun: ");
       Serial.println(bullets);
-      Serial.println(analogRead(Reload_Button) (connected));
+      Serial.println(analogRead(Reload_Button));
     }
 
 
-    if ((digitalRead(button_Shoot) == HIGH) and (connected)) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
+    if ((digitalRead(button_Shoot) == HIGH)) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
       if (bullets>=1){
         prepare_shot(gun);
@@ -784,27 +784,8 @@ void loop() {
         time_wait = bullet_type*10;
       }
     }
-    if (digitalRead((ChangeTeams_Button) == HIGH)and (connected)) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
-    {
-      Serial.println("change team");
-      String tijdelijk = ChangeTeams(teams);
-      teams ++;
-      if (teams > 4)
-      {
-        teams = 0;
-      }
-      eigenteam = tijdelijk.substring(0,3);
-      gun = tijdelijk.substring(3,tijdelijk.length());
-      Serial.print("gun: ");
-      Serial.println(gun);
-      Serial.print("team: ");
-      Serial.println(eigenteam);
-      time_wait = 5; 
-      
-      
-    }
-    if (!connected){
-      if ((digitalRead(ChangeGuns_Button) == HIGH)and (eigenteam != FFA)) //reads the change guns pin, and will attempt to change 'gun type' if it is possible in the given team
+    if (connected){
+      if ((digitalRead(ChangeGuns_Button) == HIGH) and (eigenteam != FFA)) //reads the change guns pin, and will attempt to change 'gun type' if it is possible in the given team
       {
         changeGuns();
            
@@ -816,7 +797,24 @@ void loop() {
         Serial.println(eigenteam);
         time_wait = 5; 
       }
-    }        
+      if (digitalRead((ChangeTeams_Button) == HIGH)) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
+      {
+        Serial.println("change team");
+        String tijdelijk = ChangeTeams(teams);
+        teams ++;
+        if (teams > 4)
+        {
+          teams = 0;
+        }
+        eigenteam = tijdelijk.substring(0,3);
+        gun = tijdelijk.substring(3,tijdelijk.length());
+        Serial.print("gun: ");
+        Serial.println(gun);
+        Serial.print("team: ");
+        Serial.println(eigenteam);
+        time_wait = 5; 
+        }
+      }        
     if (irrecv.decode(&results)) { //this code will try to read/decode the incomming  signals, and will also post them in the serial interface.
                                    //this will also call the function to take damage (and to recognise the other gun).
     
