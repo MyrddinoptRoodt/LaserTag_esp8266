@@ -161,7 +161,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   int id1, id2, id3;
   int pos1, pos2, pos3;
-  int n = sscanf(test, "%d%d%d", &id1, &id2, &id3);
+  int n = sscanf(test, "%d#%d#%d", &id1, &id2, &id3);
   if (id1 = Id)
   {
     Serial.print("Topic =");
