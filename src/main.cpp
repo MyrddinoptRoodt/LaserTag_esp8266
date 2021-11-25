@@ -771,7 +771,7 @@ void loop() {
     }
 
 
-    if ((digitalRead(button_Shoot) == HIGH)and (connected)) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
+    if ((digitalRead(button_Shoot) == HIGH)) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
       if (bullets>=1){
         prepare_shot(gun);
@@ -784,7 +784,7 @@ void loop() {
         time_wait = bullet_type*10;
       }
     }
-    if (digitalRead((ChangeTeams_Button) == HIGH) and (connected)) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
+    if (digitalRead((ChangeTeams_Button) == HIGH)) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
     {
       Serial.println("change team");
       String tijdelijk = ChangeTeams(teams);
