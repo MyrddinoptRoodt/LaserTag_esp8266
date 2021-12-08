@@ -18,6 +18,19 @@
 #define CHIPSET     WS2811 //type of Individualy addressable LED's we use
 #define NUM_LEDS    2 // currently we use 2 RGB LED's
 
+#define idd '2'
+String idstring = "000010";
+String CFFA = "0001";
+String CGREEN = "0010";
+String CBLUE = "0011";
+String CRED = "0100";
+String CWHITE = "0101";
+String  Cown = "0001";
+
+int totalbullets = 0;
+
+
+boolean timeout = false;
 
 WiFiClient espClient; //libary to use wifi
 PubSubClient client(espClient); //libary to use mqtt
@@ -42,6 +55,7 @@ decode_results results;  // Somewhere to store the results
 IRsend irsend(kIrLed);  // Set the GPIO to be used to sending the message.
 
 // Example of data captured by IRrecvDumpV2.ino
+uint16_t MawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4    ,5    ,6    ,7    ,8    ,9,10,11,5600};
 uint16_t rawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4    ,5    ,6    ,7    ,8    ,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24, 5600};
 //uint16_t rawData[] =   { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,786 ,786  ,393  , 5600};
 // binary codes of the 'legacy guns', ffa gun is not legacy
@@ -93,13 +107,14 @@ int gun_delay   = 10; //default cooldown for default gun
 //wifi setup
 const char* ssid = "NETGEAR";
 const char* password = "";
-const char* mqtt_server = "192.168.1.6";
+const char* mqtt_server = "192.168.1.5";
 
 //mqtt setup (part 1)
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE	(50)
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
+String tempstring = Cown + Damagex1 + idstring;
 
 //wifi loading funcion
 void setup_wifi() {
@@ -128,13 +143,83 @@ void setup_wifi() {
 
 //mqtt call back function (this function should be used to pull data from the server)
 void callback(char* topic, byte* payload, unsigned int length) {
+  
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+  if (topic == "time"){
+    snprintf (msg, MSG_BUFFER_SIZE, "%ld#%ld#%ld#%ld", idd, Health, bullets, totalbullets);
+    Serial.print("Publish message: ");
+    Serial.println(msg);
+    client.publish("1", msg);
   }
-  Serial.println();
+  if (topic[0] == idd){
+    String Cteam = "";
+    String Cdam = "";
+    Serial.println("true"); 
+    Cteam.clear();
+    Cdam.clear();
+    switch (payload[0])
+    {
+    case '1':
+      Cteam = CBLUE;
+      leds[1] = CRGB::Blue;
+      ownTeam = "CBLUE";
+    case '2':
+      Cteam = CRED;
+      leds[1] = CRGB::Red;
+      ownTeam = "CRED";
+    case '3':
+      Cteam = CGREEN;
+      leds[1] = CRGB::Green;
+      ownTeam = "CGREEN";
+      
+    case '4':
+      Cteam = CWHITE;
+      leds[1] = CRGB::White;
+      ownTeam = "CWHITE";
+      
+    case '5':
+      Cteam = CFFA;
+      leds[1] = CRGB::Purple;
+      ownTeam = "CFFA";
+    default:
+      Cteam = CFFA;
+      leds[1] = CRGB::Purple;
+      ownTeam = "CFFA";
+    }
+    switch (payload[1])
+    {
+    case '1':
+      Cdam = Damagex1;
+      bullet_type = 9;
+    case '2':
+      Cdam = Damagex2;
+      bullet_type = 6;   
+    case '3':
+      Cdam = Damagex3;
+      bullet_type = 3;
+    default:
+      Cdam = Damagex1;
+      bullet_type = 9;
+    }
+    if (payload[3])
+    {
+      bullet_type = payload[3];
+      if (payload[3] = '0')
+      {
+        bullet_type = 10;
+      }
+      
+    }
+    
+    tempstring.clear();
+
+
+    tempstring = Cteam + Cdam + idstring;
+    String tempstring = Cown + Damagex1 + idstring;
+    Serial.println(" -nice- ");
+  }
 }
 
 //display functions
@@ -254,7 +339,8 @@ void setup() {
 //function to keep mqtt connection alive
 void reconnect() {
   // Loop until we're reconnected
-  while (!client.connected()) {
+  int i = 0;
+  while ((!client.connected())and(!timeout)) {
     Serial.print("Attempting MQTT connection...");
     // Create a random client ID
     String clientId = "ESP8266Client-01";
@@ -264,13 +350,18 @@ void reconnect() {
       // Once connected, publish an announcement...
       client.publish("outTopic", "hello world");
       // ... and resubscribe
-      client.subscribe("inTopic");
+      connected = true;
+      client.subscribe("1 topic");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
       // Wait 5 seconds before retrying
       delay(5000);
+      i++;
+    }
+    if (i > 4){
+      timeout = true;
     }
   }
 }
@@ -369,7 +460,7 @@ void prepare_shot(String shot){ //this function prepares, and fires the shot, fi
   u_int i = 0;
   int array_place = 17;
   String temp = "";
-  while (i <= shot.length())
+  while ((i <= shot.length()) and (!connected))
   {
     if (shot.charAt(i) == list[1]){
       rawData[array_place] = 786;
@@ -384,12 +475,31 @@ void prepare_shot(String shot){ //this function prepares, and fires the shot, fi
           }
     i++;
   }
+  while ((i <= shot.length())and(connected))
+  {
+    if (shot.charAt(i) == list[1]){
+      MawData[array_place] = 786;
+      array_place++;
+      temp = temp + 786;
+    }
+    if (shot.charAt(i) == list[0])
+    {
+      MawData[array_place] = 393;
+      array_place++;
+      temp = temp + 786;
+          }
+    i++;
+  }
     Serial.print("Shoot: ");
   Serial.println(temp);
+  if (connected)
+  {
+    irsend.sendRaw(MawData,30,38);
+  }else{  
   irsend.sendRaw(rawData,42,38);
-  time_wait = bullet_type*10;
+  }
+  time_wait = (10 / bullet_type)*15;
 }
-
 
 void get_damage(String temp){ //as the name sugests, this function stands in to calculate the received damage, it also calls the buzzer funcion for audibel feedback when shot
   if (temp == Damagex1)
@@ -414,24 +524,38 @@ void get_damage(String temp){ //as the name sugests, this function stands in to 
   } 
   Serial.println(Health);
   Serial.println(temp);
+}
+void get_damage(String temp, int enemy){ //as the name sugests, this function stands in to calculate the received damage, it also calls the buzzer funcion for audibel feedback when shot
+  if (temp == Damagex1)
+  {
+    Health --;
+    buzzerfun(1);
+  }
+  if (temp == Damagex2)
+  {
+    Health -= 2;
+    buzzerfun(2);
+  }
+  if (temp == Damagex3)
+  {
+    Health -= 3;
+    buzzerfun(3);
+  }
+  if (Health < 1)
+  {
+    Serial.println("Dead");
+    buzzerfun(5);
+  } 
+  Serial.println(Health);
+  Serial.println(temp);
 
-  snprintf (msg, MSG_BUFFER_SIZE, "Health #%ld", Health);
-  Serial.print("Publish message: ");
-  Serial.println(msg);
-  client.publish("Health", msg);
-  snprintf (msg, MSG_BUFFER_SIZE, "Bullets #%ld", bullets);
-  Serial.print("Publish message: ");
-  Serial.println(msg);
-  client.publish("Bullets", msg);
-    snprintf (msg, MSG_BUFFER_SIZE, "hit by #%ld", Health);
-  Serial.print("Publish message: ");
-  Serial.println(msg);
-  client.publish("HitBy", msg);
-    snprintf (msg, MSG_BUFFER_SIZE, "Clips #%ld", bullets);
-  Serial.print("Publish message: ");
-  Serial.println(msg);
-  client.publish("Clips", msg);
-  
+  if (connected)
+  {
+    snprintf (msg, MSG_BUFFER_SIZE, "%ld#%ld#%ld#%ld#%ld", idd, Health, bullets, totalbullets,enemy);
+    Serial.print("Publish message: ");
+    Serial.println(msg);
+    client.publish("1", msg);
+  }  
 }
 
 void decodeData(uint16_t * Datass){ //this function is to "decode" the data, since it is encoded "raw"
@@ -439,56 +563,93 @@ void decodeData(uint16_t * Datass){ //this function is to "decode" the data, sin
   int i = 17;
   int iteration = 1;
   Serial.print("Eigen team: ");
-  Serial.println(eigenteam);
-  while (i<41) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
+  if (!connected)
   {
-   String bin_old = binairy_code;
-   uint16_t value = Datass[i]; 
-   if (value > 600)
-   {
-     binairy_code = bin_old + "1";
-   }
-   else {
-     binairy_code = bin_old + "0";
-   }
-   if ((iteration%8 == 0)){
-     String bin_old = binairy_code;
-     binairy_code = bin_old + " ";
-   }
-   iteration++;
-   i++;
-  }
-  Serial.print("code: ");
-  Serial.println(binairy_code);
-  Serial.print("code damage: "); //this gets a substring which contain the 'damage' digets to be printed, this will be seen again in the next short while
-  Serial.println(binairy_code.substring(15,17));
-  bool b = true; 
-  while (b)
-  {
-    
-    String temp = binairy_code.substring(5,8); //this gets the team value from the string
-    String damage = binairy_code.substring(15,17);//this (once again) will remember the damage value
-    Serial.println(damage);
-    Serial.println(temp);
-    if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != FFA)) 
-    // if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam) and (eigenteam != FFA)) 
+    Serial.println(eigenteam);
+    while (i<41) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
     {
-      if ((temp != eigenteam) and (eigenteam != FFA)){
-        get_damage(binairy_code.substring(15,17));
-      }
-      b = false;
-    }
-    if (temp == FFA)
-    {
-      if (eigenteam == FFA)
+      String bin_old = binairy_code;
+      uint16_t value = Datass[i]; 
+      if (value > 600)
       {
-        get_damage(damage);
+        binairy_code = bin_old + "1";
+      }else {
+        binairy_code = bin_old + "0";
+      }
+      iteration++;
+      i++;
+      
+    }
+    Serial.print("code: ");
+    Serial.println(binairy_code);
+    Serial.print("code damage: "); //this gets a substring which contain the 'damage' digets to be printed, this will be seen again in the next short while
+    Serial.println(binairy_code.substring(15,17));
+    bool b = true; 
+    while (b)
+    {
+    
+      String temp = binairy_code.substring(5,8); //this gets the team value from the string
+      String damage = binairy_code.substring(15,17);//this (once again) will remember the damage value
+      Serial.println(damage);
+      Serial.println(temp);
+      if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != FFA)) 
+      // if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam) and (eigenteam != FFA)) 
+      {
+        if ((temp != eigenteam) and (eigenteam != FFA)){
+          get_damage(binairy_code.substring(15,17));
+        }
+        b = false;
+      }
+      if (temp == FFA)
+      {
+        if (eigenteam == FFA)
+        {
+          get_damage(damage);
+        }
+        b = false;
       }
       b = false;
     }
-    b = false;
+  }
+  else
+  {
+    while (i<28) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
+    {
+      String bin_old = binairy_code;
+      uint16_t value = Datass[i]; 
+      if (value > 600)
+      {
+        binairy_code = bin_old + "1";
+      }else {
+        binairy_code = bin_old + "0";
+      }
+      iteration++;
+      i++;
+    }
+    
+    Serial.println(binairy_code.substring(0,4));
+
+    String temp = binairy_code.substring(0,3);
+    String damage = binairy_code.substring(4,6);
+    String enemyS = binairy_code.substring(8,10);
+    char enemy[4];
+    enemyS.toCharArray(enemy,5);
+    int meh = strtol(enemy, 0, 2);
+    if (temp == Cown)
+    {
+      if (temp == CFFA)
+      {
+        get_damage(damage, meh);
+      }
+      
+    }else{
+      if (temp != CFFA){
+        get_damage(damage, meh);
+      }
+    }
   }
 }
+
 
 
 void changeGuns (){ //function that changes the gun type, it uses the switch method
@@ -633,13 +794,13 @@ void loop() {
 
   ui.update();
   FastLED.show();
-  if (!client.connected()) {
+  if ((!client.connected()) and (!timeout)) {
     reconnect();
   }
    client.loop();
 
   
-  if (Health > 0) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
+  if ((Health > 0)and(!connected)) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
   {
     //int Reload_Button_Value = digitalRead(Reload_Button);
     //Serial.println(Reload_Button_Value);
@@ -650,6 +811,7 @@ void loop() {
       Serial.print("reload gun: ");
       Serial.println(bullets);
       Serial.println(analogRead(Reload_Button));
+      time_wait = 40;
       
 
     }
@@ -717,8 +879,66 @@ void loop() {
       Serial.println(eigenteam);
       time_wait = 5; 
     }    
+    if (irrecv.decode(&results)) { //this code will try to read/decode the incomming  signals, and will also post them in the serial interface.
+                                   //this will also call the function to take damage (and to recognise the other gun).
     
-    
+      Serial.println(resultToSourceCode(&results));
+      Serial.println();
+      uint16_t * Datass = resultToRawArray(&results);    // Blank line between entries
+      decodeData(Datass);
+      yield();             // Feed the WDT (again)
+      //String hit = resultToTimingInfo(&results);
+    }
+    time_wait--;
+  }
+  if ((Health > 0)and(connected)) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
+  {
+    //int Reload_Button_Value = digitalRead(Reload_Button);
+    //Serial.println(Reload_Button_Value);
+    //Serial.println(analogRead(Reload_Button));
+    if (analogRead(Reload_Button) == 1024)
+    {
+      bullets = bullet_type;
+      Serial.print("reload gun: ");
+      Serial.println(bullets);
+      Serial.println(analogRead(Reload_Button));
+      
+
+    }
+    switch (Health)//just a check to change the led colour depenging on the remaining health points
+    {
+    case 1:
+    case 2:
+    case 3:
+      leds[0] = CRGB::Red;
+      break;
+    case 4:
+    case 5:
+    case 6:
+      leds[0] = CRGB::Orange;
+      break;
+    case 7:
+    case 8:
+    case 9:
+      leds[0] = CRGB::LimeGreen;
+      break;
+    default:
+      break;
+
+    }
+    FastLED.show();
+
+    if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
+    {
+      if (bullets>=1){
+        prepare_shot(tempstring);
+        bullets--;
+        Serial.print("Remaining bullets: ");
+        Serial.println(bullets);
+        buzzerfun(2);
+        totalbullets++;
+      }
+    }
     if (irrecv.decode(&results)) { //this code will try to read/decode the incomming  signals, and will also post them in the serial interface.
                                    //this will also call the function to take damage (and to recognise the other gun).
     
