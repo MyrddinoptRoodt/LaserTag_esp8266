@@ -1,53 +1,67 @@
-#include <Arduino.h>
-#include <IRremoteESP8266.h>
-#include <IRsend.h>
-#include <IRrecv.h>
-#include <IRac.h>
-#include <IRtext.h>
-#include <IRutils.h>
-#include <assert.h>
-#include <FastLED.h>
-#include <Wire.h>
-#include "SSD1306Wire.h"
-#include "OLEDDisplayUi.h"
-#include <ESP8266WiFi.h>
-#include <PubSubClient.h>
+#include <Arduino.h>   //This libary adds some specific arduino functions
+
+
+#include <IRremoteESP8266.h> //This import is the main libary to controll the IR led and receiver.
+#include <IRsend.h>     //This import manages a specific part of the main IR libary
+#include <IRrecv.h>     //This import manages a specific part of the main IR libary
+#include <IRac.h>       //This import manages a specific part of the main IR libary
+#include <IRtext.h>     //This import manages a specific part of the main IR libary
+#include <IRutils.h>    //This import manages a specific part of the main IR libary
+
+
+#include <assert.h> //This import contains a macro for debugging purpusses (not used)
+
+
+#include <FastLED.h> //This libary manages the RGBLED's we used (replacing this libary might be a good idea)
+
+
+#include <Wire.h> //this import, contains the I2c libary
+#include "SSD1306Wire.h" //this manages the I2c connection  to the screen
+#include "OLEDDisplayUi.h" //this imnport includes the 'driver' for the oled screen
+
+
+#include <ESP8266WiFi.h> //this import includes the wifi libary: only the 2.4ghz band can be used!
+
+
+#include <PubSubClient.h> //this import contains among other things the mqtt protocol
 
 #define ledPin     2 //D4 The pin that Controlls the RGB LED's
 
 #define CHIPSET     WS2811 //type of Individualy addressable LED's we use
 #define NUM_LEDS    2 // currently we use 2 RGB LED's
 
-#define idd '2'
-String idstring = "000010";
-String CFFA = "0001";
-String CGREEN = "0010";
-String CBLUE = "0011";
+#define idd '2'               //Here we define the ID of the 'gun', this shouild be set the same as the number of the 'gun' 
+String idstring = "000010";   //Here we fill in the translated binary string of the ID (1=000001, 2=000010, 3=000011,...)
+
+String CFFA = "0001";         //These strings are predifined binary strings for the teams.
+String CGREEN = "0010";       //The strings are here to change the teams, and to compare against incomming messages.
+String CBLUE = "0011";        // The C in the beginnen means that these strings are for when the guns are connected to the server.
 String CRED = "0100";
 String CWHITE = "0101";
-String  Cown = "0001";
 
-int totalbullets = 0;
+String  Cown = "0001";        //this is the pre-set "own team", this can be changed in the code (not recomended) and can also be changed by using the server.
+
+int totalbullets = 0;         //this is a counter that keeps track of all bullets shot.
 
 
-boolean timeout = false;
+boolean timeout = false;      //this is a boolean state, by default this is false, when connection with the server fails 5x, the state is changed to 'true'. it is used to prevent the gun to get stuk in a reconnect loop.
 
-WiFiClient espClient; //libary to use wifi
+WiFiClient espClient;         //libary to use wifi
 PubSubClient client(espClient); //libary to use mqtt
-boolean connected = false; // a variable t
+boolean connected = false;    // avariable to keep track if the gun is connected to the mqtt server, is mainly used to update the status on the screen and to  switch to different parts of the code.
 
 const uint32_t kBaudRate = 115200; //bitrate 115200 is fairly standard in these type of projects.
 
 const uint16_t kCaptureBufferSize = 1024; //standard settings of the IRremoteESP8266 libary 
-const uint8_t kTimeout = 50;
+const uint8_t kTimeout = 50;  
 const uint16_t kMinUnknownSize = 12;
 const uint8_t kTolerancePercentage = kTolerance;  // kTolerance is normally 25%
 
-const uint16_t kIrLed = 15;  // ESP8266 GPIO pin to use. Recommended: 4 (D2) // using 15 (D8)
-const uint16_t kRecvPin = 14; // pin to receive ir data (D5)
+const uint16_t kIrLed = 15;  // ESP8266 GPIO pin to use. Recommended: 4 (D2) // using 15 (D8) // this defines the pin used to send the IR signals
+const uint16_t kRecvPin = 14; // pin to receive ir data (D5) // Defines The pin used to receive data
 String ownTeam = "FFA";  //Defines the basic configurgiration
 SSD1306Wire display(0x3c, SDA, SCL); //configures the display (address and i²c) (the SDA = D2,  SCL = D1)
-OLEDDisplayUi ui     ( &display );
+OLEDDisplayUi ui     ( &display );   
 CRGB leds[NUM_LEDS];
 IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, true);
 decode_results results;  // Somewhere to store the results
@@ -55,11 +69,12 @@ decode_results results;  // Somewhere to store the results
 IRsend irsend(kIrLed);  // Set the GPIO to be used to sending the message.
 
 // Example of data captured by IRrecvDumpV2.ino
-uint16_t MawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4    ,5    ,6    ,7    ,8    ,9,10,11,5600};
-uint16_t rawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4    ,5    ,6    ,7    ,8    ,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24, 5600};
+uint16_t MawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4    ,5    ,6    ,7    ,8    ,9,10,11,5600}; //this is a "parody" of rawwData, It fuffils a simelair function, it sets the lenght and structure of the data neccesairy to send.
+uint16_t rawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4    ,5    ,6    ,7    ,8    ,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24, 5600}; //This sets the lenght and structure of the data neccesairy to send.
 //uint16_t rawData[] =   { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,786 ,786  ,393  , 5600};
-// binary codes of the 'legacy guns', ffa gun is not legacy
-String BlueGunx1    = "00000001 00000001 00000110";
+
+// binary codes of the 'legacy guns', "FFAGUN" is NOT legacy. These guns can be used without a server. For improved readability this part can be put in an include document. 
+String BlueGunx1    = "00000001 00000001 00000110"; 
 String BlueGunx2    = "00000001 00000010 00000111";
 String BlueGunx3    = "00000001 00000011 00001000";
 String RedGunx1     = "00000010 00000001 00000111";
@@ -72,54 +87,64 @@ String WhiteGunx1   = "00000100 00000001 00001001";
 String WhiteGunx2   = "00000100 00000010 00001011";
 String WhiteGunx3   = "00000100 00000011 00001100";
 String FFAGUN       = "00000101 00000001 00001100";
-//codes for the teams
+
+//codes for the teams. Notice: these are the "legacy" codes, these will not be used when using a server.
 String Blue   =   "001";
 String Red    =   "010";
 String Green  =   "011";
 String White  =   "100";
 String FFA    =   "101";
 String eigenteam = "101";
-// ammo amounts gun epending on gun type
+
+// ammo amounts gun epending on gun type. This is also only for "offline games" with optionally also the legacy guns
 int bullet1x = 6;
 int bullet2x = 3;
 int bullet3x = 1;
 
-//setu up for default team and gun
+//set-up for default team and gun (legacy)
 int teams = 0;
 String gun = FFAGUN;
 int guns = 100;
-//codes for the damage
+
+//codes for the damage also used in server games
 String Damagex1   = "01";
 String Damagex2   = "10";
 String Damagex3   = "11";
-int buzzer = 0;  //  pin D3
-const uint16_t ChangeTeams_Button = 12; //d6
-const uint16_t button_Shoot = 13;    // pushbutton connected to digital pin D7
+
+//buttons
+const uint16_t buzzer = 0;              //D3    //As the name sugest, this is the pin used for the buzzer (or in our case the transisor driving the buzzer)
+const uint16_t ChangeTeams_Button = 12; //d6    //This button as function to change the team when in a non connected status.
+const uint16_t button_Shoot = 13;       //D7    pushbutton connected to digital pin D7. this button activates the shoot code.
+const uint8_t ChangeGuns_Button = 16;   //D0    button to change the gun type //this button changes the type of gun when not connected to a server
+const uint8_t Reload_Button = A0;       //A0    reload button on A0  //used to reload the bullets variable.
+
 int val = 0;      // variable to store the read value
-const uint8_t ChangeGuns_Button = 16;//D0 button to change the gun type
-const uint8_t Reload_Button = A0;//reload button on A0 
-int bullets = 6;//amount of bullets for default gun
-int Health = 9; //you start with 9hp
-int bullet_type = bullet1x;
-int time_wait = 0; //cooldown for actions
-int gun_delay   = 10; //default cooldown for default gun
+
+//some standard values
+int bullets     = 6;        //amount of bullets for default gun
+int Health      = 9;        //you start with 9hp (also true for server games)
+int bullet_type = bullet1x; //sets the amount of bullets for each 'clip'
+int time_wait   = 0;        //cooldown for actions
+int gun_delay   = 10;       //default cooldown for default gun
 
 //wifi setup
-const char* ssid = "NETGEAR";
-const char* password = "";
-const char* mqtt_server = "192.168.1.5";
+const char* ssid = "NETGEAR";             //fill in the 2.4ghz wifi name 
+const char* password = "";                //fill in the wifi password
+const char* mqtt_server = "192.168.1.5";  //the address of the mqtt-server NOTICE: this is a local ip address, use the same network on the server.
 
 //mqtt setup (part 1)
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE	(50)
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
-String tempstring = Cown + Damagex1 + idstring;
+
+String tempstring = Cown + Damagex1 + idstring;//the standaard string to send to the server: ownteamID + damage(type) + Id
 
 //wifi loading funcion
 void setup_wifi() {
 
   delay(10);
+
   // We start by connecting to a WiFi network
   Serial.println();
   Serial.print("Connecting to ");
@@ -128,12 +153,12 @@ void setup_wifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
+  // As long as we are not connected, the sp wil try to reconnect REMINDME !!!
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-  }
 
-  randomSeed(micros());
+  }
 
   Serial.println("");
   Serial.println("WiFi connected");
@@ -141,30 +166,37 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
-//mqtt call back function (this function should be used to pull data from the server)
-void callback(char* topic, byte* payload, unsigned int length) {
+//mqtt call back function (this function should be used to pull data from the server), listens on MQTT connection for incomming messages: (channel, message length)
+void callback(char* topic, byte* payload, unsigned int length) {                              
   
+  //For debugging, the esp prints whenever a message has arived, on with topic/channel it did.
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
+  
+  //This statement checks if the channel is "time", if it is, the ESP will send a message to the server as follows: ID # Health # bullets # totalbullets. If it is not, the message is passed along
   if (topic == "time"){
     snprintf (msg, MSG_BUFFER_SIZE, "%ld#%ld#%ld#%ld", idd, Health, bullets, totalbullets);
     Serial.print("Publish message: ");
     Serial.println(msg);
     client.publish("1", msg);
   }
-  if (topic[0] == idd){
-    String Cteam = "";
+
+                                  //If the topic is the same as its own ID, the message is regarded as a configuration. The esp will configure its stelf to the given parameters.
+  if (topic[0] == idd){           //This way the ID can not be more than 9, first character of he topic has to be the same as the Id
+    
+    String Cteam = "";            //Firstly some 'fresh' Strings are made and cleared REMINDME !!!
     String Cdam = "";
-    Serial.println("true"); 
     Cteam.clear();
     Cdam.clear();
-    switch (payload[0])
+
+   
+    switch (payload[0])           //This switch statment tries to match the first character of the message with a certain case, This field will define to wich team the gun belongs.
     {
     case '1':
-      Cteam = CBLUE;
-      leds[1] = CRGB::Blue;
-      ownTeam = "CBLUE";
+      Cteam = CBLUE;              //Sets the team value (the binary string) via the presets
+      leds[1] = CRGB::Blue;       //Sets the correct collour of the RGBLED
+      ownTeam = "CBLUE";          //used for debugging, nor real "purpose"
     case '2':
       Cteam = CRED;
       leds[1] = CRGB::Red;
@@ -183,16 +215,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
       Cteam = CFFA;
       leds[1] = CRGB::Purple;
       ownTeam = "CFFA";
-    default:
+    default:                      //Sets the default values (it falls back to '1')
       Cteam = CFFA;
       leds[1] = CRGB::Purple;
       ownTeam = "CFFA";
     }
-    switch (payload[1])
-    {
+
+
+    switch (payload[1])           //Here the second haracter is compared against the cases. Here the damage type (1x, 2x, 3x) gets set. 
+    {                             //The bullettype (the amount of bullets in a clip) gets set as well.
     case '1':
-      Cdam = Damagex1;
-      bullet_type = 9;
+      Cdam = Damagex1;            //The damage gets set via the presets of damage type
+      bullet_type = 9;            //The bullettype is set  to custom values, it can be overridden by the next function.
     case '2':
       Cdam = Damagex2;
       bullet_type = 6;   
@@ -203,8 +237,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
       Cdam = Damagex1;
       bullet_type = 9;
     }
-    if (payload[3])
-    {
+
+
+    if (payload[3])               //If the payload contains 3 charachers, the third one will overide
+    {                             //the earlier defined bullet type with the value in payload[3]
       bullet_type = payload[3];
       if (payload[3] = '0')
       {
@@ -213,25 +249,22 @@ void callback(char* topic, byte* payload, unsigned int length) {
       
     }
     
-    tempstring.clear();
-
-
-    tempstring = Cteam + Cdam + idstring;
-    String tempstring = Cown + Damagex1 + idstring;
-    Serial.println(" -nice- ");
+    tempstring.clear();                         //The default send string is cleared so that it can be build with new values.
+    tempstring = Cteam + Cdam + idstring;       //This string contains all data that wil be send over IR, you can compare to the realier defined default string
+    //String tempstring = Cown + Damagex1 + idstring;
+    Serial.println(" received configuration "); //To ease debugging, the esp prints to serial whenever it receives a configuration. 
   }
 }
 
-//display functions
+//display functions: this configures the screen overlay, and sets some values: like font, text alignment,... This is not actively used.
 void msOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
   display->setTextAlignment(TEXT_ALIGN_RIGHT);
   display->setFont(ArialMT_Plain_10);
   display->drawString(128, 0, String(millis()));
 }
+
+//this function contains information about the first 'screen tab'
 void drawFrame1(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  // draw an xbm image.
-  // Please note that everything that should be transitioned
-  // needs to be drawn relative to x and y
   display->setTextAlignment(TEXT_ALIGN_LEFT);
   display->setFont(ArialMT_Plain_16);
   String status = "Not connected";
