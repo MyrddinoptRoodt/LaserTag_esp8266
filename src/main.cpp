@@ -9,7 +9,7 @@
 #include <IRutils.h>    //This import manages a specific part of the main IR libary
 
 
-#include <assert.h> //This import contains a macro for debugging purpusses (not used)
+#include <assert.h> //This import contains a macro for debugging purpusses (used in the void setup to confirm the correct launch of the IR libary (sanity check))
 
 
 #include <FastLED.h> //This libary manages the RGBLED's we used (replacing this libary might be a good idea)
@@ -32,6 +32,7 @@
 
 #define idd '2'               //Here we define the ID of the 'gun', this shouild be set the same as the number of the 'gun' 
 String idstring = "000010";   //Here we fill in the translated binary string of the ID (1=000001, 2=000010, 3=000011,...)
+const char ID_TOP = '2';
 
 String CFFA = "0001";         //These strings are predifined binary strings for the teams.
 String CGREEN = "0010";       //The strings are here to change the teams, and to compare against incomming messages.
@@ -315,42 +316,37 @@ void drawFrame4(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int1
 FrameCallback frames[] = { drawFrame1, drawFrame2, drawFrame3,drawFrame4};
 
 
+//the void setupconfigures the hardware side of things, and gives some initial values to some other functions. also starts connection wih wifi, mqtt,... and launches some other software.
 void setup() {
-  pinMode(kIrLed, OUTPUT);
-  digitalWrite(kIrLed,LOW);
-  pinMode(buzzer, OUTPUT);  // sets the digital pin 15 as output
-  pinMode(button_Shoot, INPUT);    // sets the digital pin 7 as input
-  pinMode(ChangeGuns_Button,INPUT);
-  pinMode(Reload_Button,INPUT);
-  pinMode(ChangeTeams_Button, INPUT);
-  irsend.begin();
-  Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
-  assert(irutils::lowLevelSanityCheck() == 0);
-  FastLED.addLeds<WS2812B, ledPin, GRB>(leds, NUM_LEDS);
-  leds[1] = CRGB::Purple;
-  leds[0] = CRGB::Green;
-  setup_wifi();
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
-
-
-
-
-
-
-  // Initialising the UI will init the display too.
+  pinMode(kIrLed, OUTPUT);                // (D8) set the digital pin for the IR LED as output
+  digitalWrite(kIrLed,LOW);               // makes shure the Ir led starts while truned off.
+  pinMode(buzzer, OUTPUT);                // (D3) sets the digital pin 15 as output
+  pinMode(button_Shoot, INPUT);           // (D7) sets the digital pin 7 as input
+  pinMode(ChangeGuns_Button,INPUT);       // (D0) sets the digital pin 16 as input
+  pinMode(Reload_Button,INPUT);           // (A0) sets the analog pin 0 as inoput (the pin is used as a digital pin with cutoff values)
+  pinMode(ChangeTeams_Button, INPUT);     // (D6) sets the digital pun 12 as input
+  irsend.begin();                         // starts initialises the IRsend libary
+  Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);       //initialises the serial connection (this is used for debugging)
+  assert(irutils::lowLevelSanityCheck() == 0);            //this runs a check to confirm correct behaviour of the IR urtils libary (part of the greater IR remote lib)
+  FastLED.addLeds<WS2812B, ledPin, RGB>(leds, NUM_LEDS);  //configures the RGB LEDs , the type , the number, and the pin
   
+  leds[1] = CRGB::Purple;                 // sets the default values of the 2 LED's
+  leds[0] = CRGB::Green;
+  
+  setup_wifi();                           // runs the wifi setup
+  client.setServer(mqtt_server, 1883);    // configures the mqtt server
+  client.setCallback(callback);           // configures the call back function
+
+
   Serial.printf("\n" D_STR_IRRECVDUMP_STARTUP "\n", kRecvPin);
 #if DECODE_HASH
   // Ignore messages with less than minimum on or off pulses.
   irrecv.setUnknownThreshold(kMinUnknownSize);
 #endif  // DECODE_HASH
   irrecv.setTolerance(kTolerancePercentage);  // Override the default tolerance.
-  irrecv.enableIRIn();  // Start the receiver
+  irrecv.enableIRIn();                        // Start the receiver
 
-
-
-  ui.setTargetFPS(10);
+  ui.setTargetFPS(10);   //sets the fps of the screen
 
   // You can change this to
   // TOP, LEFT, BOTTOM, RIGHT
@@ -369,22 +365,23 @@ void setup() {
   
 }
 
+
 //function to keep mqtt connection alive
 void reconnect() {
   // Loop until we're reconnected
   int i = 0;
-  while ((!client.connected())and(!timeout)) {
+  while ((!client.connected())and(!timeout)) { //tries connection for a few times where after it stops for serverles operation.
     Serial.print("Attempting MQTT connection...");
-    // Create a random client ID
+    // Replace the client ID with 'any' chosen string.
     String clientId = "ESP8266Client-01";
     // Attempt to connect
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish("outTopic", "hello world");
+      client.publish("2", "connected!");  //replace "2" with the esp ID (idd)
       // ... and resubscribe
       connected = true;
-      client.subscribe("1 topic");
+      client.subscribe("2");              //replace "2" with the esp ID (idd)
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -399,7 +396,7 @@ void reconnect() {
   }
 }
 
-//function to output sound please change this to something less annoying
+//function to output sound please change this to something less annoying, we can only controll whether or not the buzzer is powerd or not.
 void buzzerfun(int repeat){
   int i = 0;
   while (i < repeat*2)
@@ -417,26 +414,27 @@ void buzzerfun(int repeat){
   
 }
 
-//change teams function
-String ChangeTeams(int teams){
-  teams ++;
+//this function changes moves the player to a different team. (this is only possible while not connected to a server)
+String ChangeTeams(int teams){ 
+  gun.clear();
+  eigenteam.clear();
+  ownTeam.clear();
+  teams ++;                     // the gun cycles through an array of teams
   if (teams == 5){
     teams = 0;
-    gun.clear();
-    eigenteam.clear();
   }
-  String temp = "";
+
+
+  String temp = "";             // the team is decided by an "index int", and via a swich statement the correct configuration is chosen. (optimisation is possible)
   switch (teams)
   {
-    case 0:
-      leds[1] = CRGB::Purple;
-      
-      eigenteam = FFA;
-      gun = FFAGUN;
-      guns = 100;
-      temp = eigenteam + gun;
-      ownTeam.clear();
-      ownTeam.concat("FFA");
+    case 0:                     // when the indew number is the same of the case
+      leds[1] = CRGB::Purple;   // sets the colour of the 2th LED (the team LED)
+      eigenteam = FFA;          // sets the ownteam string to the changed value, this is used to determine if a shot was friendly or not.
+      gun = FFAGUN;             // sets the string that has to be fired
+      guns = 100;               // sets the gun value (mostly used to keep track)
+      temp = eigenteam + gun;   // makes a temperary string that will be used in this functon to return a value (this is used for debugging)
+      ownTeam.concat("FFA");    // sets the ownTeam variable, also mostly for debugging 
       break;
     case 1:
       leds[1] = CRGB::Blue;
@@ -444,7 +442,6 @@ String ChangeTeams(int teams){
       gun = BlueGunx1;
       guns = 10;
       temp = eigenteam + gun;
-      ownTeam.clear();
       ownTeam.concat("Blue");
       break;
     case 2:
@@ -453,7 +450,6 @@ String ChangeTeams(int teams){
       gun = RedGunx1;
       guns = 20;
       temp = eigenteam + gun;
-      ownTeam.clear();
       ownTeam.concat("Red");
       break;
     case 3:
@@ -462,7 +458,6 @@ String ChangeTeams(int teams){
       gun = GreenGunx1;
       guns = 30;
       temp = eigenteam + gun;
-      ownTeam.clear();
       ownTeam.concat("Green");
       break;
     case 4:
@@ -471,7 +466,6 @@ String ChangeTeams(int teams){
       gun = WhiteGunx1;
       guns = 40;
       temp = eigenteam + gun;
-      ownTeam.clear();
       ownTeam.concat("White");
       break;
     default:
@@ -480,11 +474,10 @@ String ChangeTeams(int teams){
       gun = FFAGUN;
       guns = 100;
       temp = eigenteam + gun;
-      ownTeam.clear();
       ownTeam.concat("FFA");
       break;
-    }
-    return temp;
+  }
+  return temp;
 }
 
 
