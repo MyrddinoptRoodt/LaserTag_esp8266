@@ -70,7 +70,7 @@ decode_results results;  // Somewhere to store the results
 IRsend irsend(kIrLed);  // Set the GPIO to be used to sending the message.
 
 // Example of data captured by IRrecvDumpV2.ino
-uint16_t MawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4    ,5    ,6    ,7    ,8    ,9,10,11,5600}; //this is a "parody" of rawwData, It fuffils a simelair function, it sets the lenght and structure of the data neccesairy to send.
+uint16_t MawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4    ,5    ,6    ,7    ,8    ,9,10,11,12,13,5600}; //this is a "parody" of rawwData, It fuffils a simelair function, it sets the lenght and structure of the data neccesairy to send.
 uint16_t rawData[] = { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 1  , 2   ,3    ,4    ,5    ,6    ,7    ,8    ,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24, 5600}; //This sets the lenght and structure of the data neccesairy to send.
 //uint16_t rawData[] =   { 1646 , 422 , 393, 393, 393, 393, 393, 393, 393, 786, 393, 786, 393, 786, 393, 786, 393, 393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,393  ,393  ,786  ,393, 393 ,393  ,393  ,393  ,786 ,786  ,393  , 5600};
 
@@ -477,17 +477,21 @@ String ChangeTeams(int teams){
       ownTeam.concat("FFA");
       break;
   }
-  return temp;
+  return temp;                  // returns the 'temp' string
 }
 
 
-void prepare_shot(String shot){ //this function prepares, and fires the shot, first it will create a string to send in binary, then it will translate the string to a raw array, wich will be send as is
-  String list = "01";
-  u_int i = 0;
-  int array_place = 17;
-  String temp = "";
-  while ((i <= shot.length()) and (!connected))
+void prepare_shot(String shot){ // this function prepares, and fires the shot, first it will create a string to send in binary, then it will translate the string to a raw array, wich will be send as is
+  String list = "01";           // this is an array of sorts to compare values against.
+  u_int i = 0;                  // this is is used instead of a for loop.
+  int array_place = 17;         // defines the starting poition in the raw- or mawdata
+  String temp = "";             // initialises the string
+  
+  // when the esp is not connected, this piece of the code is used.
+  while ((i <= shot.length()) and (!connected)) 
   {
+    
+    // This part builds the array in a correct way, it reads a binary string, if it encounters a 1: it adds 786, if it encounters a 0 it places a 393  
     if (shot.charAt(i) == list[1]){
       rawData[array_place] = 786;
       array_place++;
@@ -498,11 +502,16 @@ void prepare_shot(String shot){ //this function prepares, and fires the shot, fi
       rawData[array_place] = 393;
       array_place++;
       temp = temp + 786;
-          }
+      }
     i++;
+
+
   }
+
+  // when the is IS connected, this part of the code is executed. (the difference is the shorter templkate string, MawData is shorter than RawData)
   while ((i <= shot.length())and(connected))
   {
+    // This part builds the array in a correct way, it reads a binary string, if it encounters a 1: it adds 786, if it encounters a 0 it places a 393
     if (shot.charAt(i) == list[1]){
       MawData[array_place] = 786;
       array_place++;
@@ -516,9 +525,13 @@ void prepare_shot(String shot){ //this function prepares, and fires the shot, fi
           }
     i++;
   }
-    Serial.print("Shoot: ");
+
+
+  Serial.print("Shoot: ");            //while the esp is connected to a serial monitor, this wil display when the esp shoots: it is usefull to get more insight on what the esp is doeing
   Serial.println(temp);
-  if (connected)
+  
+
+  if (connected)                      //when the esp is connected, it shoots the MawData array, else, it shoots the rawData array and waits for a short while to prevent spam shooting
   {
     irsend.sendRaw(MawData,30,38);
   }else{  
@@ -527,8 +540,13 @@ void prepare_shot(String shot){ //this function prepares, and fires the shot, fi
   time_wait = (10 / bullet_type)*15;
 }
 
-void get_damage(String temp){ //as the name sugests, this function stands in to calculate the received damage, it also calls the buzzer funcion for audibel feedback when shot
-  if (temp == Damagex1)
+
+//as the name sugests, this function stands in to calculate the received damage, it also calls the buzzer funcion for audible feedback when shot
+void get_damage(String temp){         
+  // First this function tests what type of damage is received, whereafter it also suptracts the approirate amount of health.
+  // it also gives a shot beeb after being shot, this beep is differenbt for each case, when the HP dops below 1, it once again wil give a longer beeb.
+  // to aid debugging, there are also serial prints here to validate propper functionning of the gun
+  if (temp == Damagex1)         
   {
     Health --;
     buzzerfun(1);
@@ -551,7 +569,16 @@ void get_damage(String temp){ //as the name sugests, this function stands in to 
   Serial.println(Health);
   Serial.println(temp);
 }
-void get_damage(String temp, int enemy){ //as the name sugests, this function stands in to calculate the received damage, it also calls the buzzer funcion for audibel feedback when shot
+
+
+//as the name sugests, this function stands in to calculate the received damage, it also calls the buzzer funcion for audibel feedback when shot. This overload is used when the gun is connected to the server
+//
+//needs the damage string, and the int of the enemy
+void get_damage(String temp, int enemy){ 
+  // First this function tests what type of damage is received, whereafter it also suptracts the approirate amount of health.
+  // it also gives a shot beeb after being shot, this beep is differenbt for each case, when the HP dops below 1, it once again wil give a longer beeb.
+  // to aid debugging, there are also serial prints here to validate propper functionning of the gun
+  // lastly it also sends a message to the server: the message identifies the esp, the remaining health, the total amount of bullets shot, and the enemy that has shot the player.
   if (temp == Damagex1)
   {
     Health --;
@@ -580,97 +607,106 @@ void get_damage(String temp, int enemy){ //as the name sugests, this function st
     snprintf (msg, MSG_BUFFER_SIZE, "%ld#%ld#%ld#%ld#%ld", idd, Health, bullets, totalbullets,enemy);
     Serial.print("Publish message: ");
     Serial.println(msg);
-    client.publish("1", msg);
+    client.publish("2", msg); //change the '2' to the ID of the esp gun!!! this changes the channel to it's own.
   }  
 }
 
-void decodeData(uint16_t * Datass){ //this function is to "decode" the data, since it is encoded "raw"
-  String binairy_code = "";
-  int i = 17;
-  int iteration = 1;
-  Serial.print("Eigen team: ");
-  if (!connected)
+
+//this function is to "decode" the data, since it is encoded "raw" (manchester encoding?)
+// this requires the rewceived array.
+void decodeData(uint16_t * Datass){
+  //this part is a mess please continue wwith patience
+
+  
+  String binairy_code = "";   	  // at the start we initialise a string to store the 'translated' array
+  int i = 17;                     // sets the start place for decoding, the first 17 characters in the array are always the same and don't contain anny data.
+  Serial.print("Eigen team: ");   // a bit of feedback for debugging
+  
+  
+  
+  if (!connected)                 // this opart is the code for when the gun isn't connected to a server.
   {
     Serial.println(eigenteam);
-    while (i<41) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
+    while (i<41)                  // this part decodes the received values to binary, the first values of the array are static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
     {
-      String bin_old = binairy_code;
+      
       uint16_t value = Datass[i]; 
-      if (value > 600)
+      if (value > 600)                  //if the value in the array exeedes 600 it is a binnary 1, if not, it is a binnary 0
       {
-        binairy_code = bin_old + "1";
+        binairy_code.concat("1");
       }else {
-        binairy_code = bin_old + "0";
+        binairy_code.concat("0");
       }
-      iteration++;
-      i++;
+      i++;                              //steps a place forward in the array
       
     }
+
+
+
     Serial.print("code: ");
     Serial.println(binairy_code);
-    Serial.print("code damage: "); //this gets a substring which contain the 'damage' digets to be printed, this will be seen again in the next short while
-    Serial.println(binairy_code.substring(15,17));
-    bool b = true; 
-    while (b)
-    {
+    Serial.print("code damage: ");                  //this gets a substring which contain the 'damage' digets to be printed, this will be seen again in the next short while
     
-      String temp = binairy_code.substring(5,8); //this gets the team value from the string
-      String damage = binairy_code.substring(15,17);//this (once again) will remember the damage value
-      Serial.println(damage);
-      Serial.println(temp);
-      if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != FFA)) 
-      // if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != eigenteam) and (eigenteam != FFA)) 
-      {
-        if ((temp != eigenteam) and (eigenteam != FFA)){
-          get_damage(binairy_code.substring(15,17));
-        }
-        b = false;
+    // Here we isolate a few values from the received string, such as: the team code(temp) and the damage(damage).
+    Serial.println(binairy_code.substring(15,17));      
+    String temp = binairy_code.substring(5,8);      //this gets the team value from the string
+    String damage = binairy_code.substring(15,17);  //this (once again) will remember the damage value
+    // jsut fome prints to ease testing/developping
+    Serial.println(damage);
+    Serial.println(temp);
+    
+    // here we compare the team of the shooter, and the team of this esp 
+    if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != FFA)) //here the code checks if the team is valid, and not ffa(because of the different rules)
+    {
+      if ((temp != eigenteam) and (eigenteam != FFA)){ //if the team id is valid, and not ffa, amd your team id isn't the same or FFA, the get damage function is called
+        get_damage(damage); //passes the damage data to the get_damage function
       }
-      if (temp == FFA)
+    }
+    if (temp == FFA)        //if both teams 
+    {
+      if (eigenteam == FFA)
       {
-        if (eigenteam == FFA)
-        {
-          get_damage(damage);
-        }
-        b = false;
+        get_damage(damage);
       }
-      b = false;
     }
   }
-  else
+  else  //AKA if the esp IS connected this part is run.
   {
+    // this code is largly the same as the code above
+    
     while (i<28) //this part decodes the received values to binary, the first values of the array is static, and already present in this code, the part between place 17 and 41 (not inclusive, also we are programmers: indexes start at 0)
     {
-      String bin_old = binairy_code;
+
       uint16_t value = Datass[i]; 
-      if (value > 600)
+      if (value > 600)              //if the value in the array exeedes 600 it is a binnary 1, if not, it is a binnary 0
       {
-        binairy_code = bin_old + "1";
+        binairy_code.concat("1");
       }else {
-        binairy_code = bin_old + "0";
+        binairy_code.concat("0");
       }
-      iteration++;
       i++;
     }
     
-    Serial.println(binairy_code.substring(0,4));
 
-    String temp = binairy_code.substring(0,3);
-    String damage = binairy_code.substring(4,6);
-    String enemyS = binairy_code.substring(8,10);
-    char enemy[4];
-    enemyS.toCharArray(enemy,5);
-    int meh = strtol(enemy, 0, 2);
-    if (temp == Cown)
+    // Here a few strings are initialised with data froom the array
+    String temp = binairy_code.substring(0,3);      //the team of the shooting gun
+    String damage = binairy_code.substring(4,6);    //The damge type of the shooting gun
+    String enemyS = binairy_code.substring(7,12);   //The enemy id in binary
+    char enemy[6];                                  //An array to store the binary ID
+    
+    
+    enemyS.toCharArray(enemy,5);                    //The array gets filed
+    int EnemyId = strtol(enemy, 0, 2);              //The array gets converted to an int
+    if (temp == Cown)                               //Checks if teams are equal
     {
-      if (temp == CFFA)
+      if (temp == CFFA)                             //checks if both teams are FFA
       {
-        get_damage(damage, meh);
+        get_damage(damage, EnemyId);
       }
       
     }else{
-      if (temp != CFFA){
-        get_damage(damage, meh);
+      if ((temp != CFFA) and (Cown != CFFA)){   //If both teams are differend and neither is part of CFFA,
+        get_damage(damage, EnemyId);            //the hit is also counted and will be send trough to the get_damage function with the damage code and the enemy ID
       }
     }
   }
@@ -919,9 +955,6 @@ void loop() {
   }
   if ((Health > 0)and(connected)) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
   {
-    //int Reload_Button_Value = digitalRead(Reload_Button);
-    //Serial.println(Reload_Button_Value);
-    //Serial.println(analogRead(Reload_Button));
     if (analogRead(Reload_Button) == 1024)
     {
       bullets = bullet_type;
