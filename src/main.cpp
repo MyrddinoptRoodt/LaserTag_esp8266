@@ -662,7 +662,7 @@ void decodeData(uint16_t * Datass){
         get_damage(damage); //passes the damage data to the get_damage function
       }
     }
-    if (temp == FFA)        //if both teams 
+    if (temp == FFA)        //if both teams are in the FFA team, the shot will count, and the damage data will be send trough.
     {
       if (eigenteam == FFA)
       {
@@ -699,7 +699,7 @@ void decodeData(uint16_t * Datass){
     int EnemyId = strtol(enemy, 0, 2);              //The array gets converted to an int
     if (temp == Cown)                               //Checks if teams are equal
     {
-      if (temp == CFFA)                             //checks if both teams are FFA
+      if (temp == CFFA)                             //checks if both teams are CFFA, if so the shot is valid, and wil be piped through to get damage with te enemy ID
       {
         get_damage(damage, EnemyId);
       }
@@ -713,24 +713,24 @@ void decodeData(uint16_t * Datass){
 }
 
 
-
-void changeGuns (){ //function that changes the gun type, it uses the switch method
-  guns ++;
-  switch (teams) // guns are 'different' for each team, so it first checks what team the gun currently is part of.
+//This function is used to change the gun type when in "ofline/legacy" mode.
+void changeGuns (){   // function that changes the gun type, it uses the switch method
+  guns ++;            // here it increments the gun index.
+  switch (teams)      // guns are 'different' for each team, so it first checks what team the gun currently is part of.
   {
-  case 0:
+  case 0:                     //If the gun is currently part of the FFA team, the gun cannot be swithched to another gun
     gun.clear();
     gun = FFAGUN;
     bullets = bullet1x;
     bullet_type = bullet1x;
     break;
-  case 1:
-    switch (guns)
+  case 1:                     
+    switch (guns)             //here it checks the gun index, this wil only run this switch statement after having determened in what team the gun currently is in.
     {
-    case 11:
-      gun = BlueGunx2;
-      bullets = bullet2x;
-      bullet_type = bullet2x;
+    case 11:                  //each team has valid gun indexes according to: their TeamID and a range between 1 to 3 (inclusive)
+      gun = BlueGunx2;        //first the gun is given the binary string defined in the variable
+      bullets = bullet2x;     //reloads the bullets
+      bullet_type = bullet2x; //defines the amount of bullets per clip
       break;
     case 12:
       gun = BlueGunx3;
@@ -740,11 +740,11 @@ void changeGuns (){ //function that changes the gun type, it uses the switch met
     case 13:
       gun = BlueGunx1;
       bullets = bullet1x;
-      guns = 10;
+      guns = 10;              // here it sets the 'guns' index as 10 so that when the function is rerun, the next type will still make sense 
       bullet_type = bullet1x;
       break;
 
-    default:
+    default:                  // here we have a catch to redirect undefined behaviour so that the data makes sence once again, the variabls become reset to a valid state.
       guns = 10;
       bullets = bullet1x;
       gun = BlueGunx1;
@@ -845,38 +845,38 @@ void changeGuns (){ //function that changes the gun type, it uses the switch met
     }
     break;
           
-  default:
+  default: //stops function if no valid team id is given
     break;
   }
   
 }
 
 
+//the main function loop, this is function loops forever, and calls other functions
 void loop() {
 
-  ui.update();
-  FastLED.show();
+  ui.update();      // this function updates the display, and updates the pages if hey have been edited
+  FastLED.show();   // this function updates the RGBLEDs so that collor changes become visable.
+  
+  
   if ((!client.connected()) and (!timeout)) {
-    reconnect();
+    reconnect();    // the function to reconnect to the server if connection suddenly dropps
   }
-   client.loop();
+   client.loop();   // listens on mqtt
 
   
-  if ((Health > 0)and(!connected)) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
+  if ((Health > 0)and(!connected))          // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
   {
-    //int Reload_Button_Value = digitalRead(Reload_Button);
-    //Serial.println(Reload_Button_Value);
-    //Serial.println(analogRead(Reload_Button));
-    if (analogRead(Reload_Button) == 1024)
+    if (analogRead(Reload_Button) == 1024)  // if the reloadbutton pin 1024 recaives as a value (happens when bridged to 3.3V) the reload function wil restock the bullets
     {
-      bullets = bullet_type;
-      Serial.print("reload gun: ");
+      bullets = bullet_type;                // this overdides the remaing bullets with the clip siz (reloaing)
+      Serial.print("reload gun: ");         // for testing, a few serial prints to make shure it works
       Serial.println(bullets);
       Serial.println(analogRead(Reload_Button));
-      time_wait = 40;
-      
-
+      time_wait = 40;                       // a preset time to wait (this is purly artificial waithing, this way you can cannot spam actions (appart for reloading))
     }
+    
+    
     switch (Health)//just a check to change the led colour depenging on the remaining health points
     {
     case 1:
@@ -898,72 +898,83 @@ void loop() {
       break;
 
     }
-    FastLED.show();
+    FastLED.show();                        //refresh led's
 
     if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
       if (bullets>=1){
-        prepare_shot(gun);
-        bullets--;
+        prepare_shot(gun);                      //runs the prepare shot with a selected template 
+        bullets--;                              //bullets remaining reduced everytime a shot is fired by the gun.
         Serial.print("Remaining bullets: ");
-        Serial.println(bullets);
-        buzzerfun(2);
+        Serial.println(bullets);                
+        buzzerfun(2);                           //the gun gives a short beeb when fired.
       }
     }
-    if (digitalRead(ChangeTeams_Button) == HIGH) //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
+    
+    
+    if (digitalRead(ChangeTeams_Button) == HIGH)        //reads the teams pin, if the pin is high, the gun will change team, this is done by running the change teams function
     {
       Serial.println("change team");
-      String tijdelijk = ChangeTeams(teams);
-      teams ++;
-      if (teams > 4)
+      String tijdelijk = ChangeTeams(teams);            // here a temperary value is made to store the returned string
+      teams ++;                                         //team is automaticaly incremented
+      if (teams > 4)                                    //if the team is 5 or more, the team id wil be reset to 0
       {
         teams = 0;
       }
-      eigenteam = tijdelijk.substring(0,3);
-      gun = tijdelijk.substring(3,tijdelijk.length());
+      eigenteam = tijdelijk.substring(0,3);             //the own team string is reassigned with a new value selected from the returned string
+      gun = tijdelijk.substring(3,tijdelijk.length());  //the 'gun' string is also reassigned to the newly selected value
+      
+    
       Serial.print("gun: ");
       Serial.println(gun);
       Serial.print("team: ");
-      Serial.println(eigenteam);
-      time_wait = 5; 
+      Serial.println(eigenteam);  //a bunch of debugging stuff 
+      
+      time_wait = 5;              // to prevent accidental double presses.
       
       
     }
+    
+    
     if ((digitalRead(ChangeGuns_Button) == HIGH)and (eigenteam != FFA)) //reads the change guns pin, and will attempt to change 'gun type' if it is possible in the given team
     {
-      changeGuns();
+      changeGuns();                //The change guns function is run if the own team isn't FFA (FFA only contains 1 type), the corresponding amount of bullets are also set in this function.
            
-      Serial.print("Gun: ");
-      Serial.println(gun);
+      Serial.print("Gun: ");       //there is also a lot of testing info present to check correct behaviour.
+      Serial.println(gun);         
       Serial.print("Gun ID: ");
-      Serial.println(guns);
+      Serial.println(guns);        
       Serial.print("Team: ");
       Serial.println(eigenteam);
-      time_wait = 5; 
+      time_wait = 5;               //here to prevent accidental spam clicking
     }    
+    
+    
     if (irrecv.decode(&results)) { //this code will try to read/decode the incomming  signals, and will also post them in the serial interface.
                                    //this will also call the function to take damage (and to recognise the other gun).
     
-      Serial.println(resultToSourceCode(&results));
+      Serial.println(resultToSourceCode(&results));      //prints the received array partialy
       Serial.println();
+      //this is part of some example code from the IRremote libary
       uint16_t * Datass = resultToRawArray(&results);    // Blank line between entries
       decodeData(Datass);
-      yield();             // Feed the WDT (again)
-      //String hit = resultToTimingInfo(&results);
+      yield();             // Feed the WDT (again)  
     }
-    time_wait--;
+    time_wait--;           // the time waits are in actuality a few loop runs that some functions do not react.
   }
-  if ((Health > 0)and(connected)) // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
+  
+  
+  if ((Health > 0)and(connected))           // as long as you have health you are part of the game, when your hp is drained, the gun doesn't read inputs anymore.
   {
-    if (analogRead(Reload_Button) == 1024)
+    if (analogRead(Reload_Button) == 1024)  // if the button connected to the button is closed, the reload function wil run
     {
-      bullets = bullet_type;
-      Serial.print("reload gun: ");
+      bullets = bullet_type;                // the bullets are reset to the same value as the clip size, future expantion could ad a system of limmited clips. 
+      Serial.print("reload gun: ");         // some debugg/testing features
       Serial.println(bullets);
       Serial.println(analogRead(Reload_Button));
-      
-
     }
+    
+    
     switch (Health)//just a check to change the led colour depenging on the remaining health points
     {
     case 1:
@@ -985,40 +996,46 @@ void loop() {
       break;
 
     }
-    FastLED.show();
+    FastLED.show(); // refreshes the LED's
 
     if (digitalRead(button_Shoot) == HIGH) //readout of pin to detect if button is pressed, and will if so run the function "gun" (aka, it fires the "laser")
     {
       if (bullets>=1){
-        prepare_shot(tempstring);
-        bullets--;
-        Serial.print("Remaining bullets: ");
+        prepare_shot(tempstring);             // the function is run with the srtring containing the info for a game connected to the server
+        bullets--;                            //when shooting, the bullets wil go down by one everytime the function is run
+        Serial.print("Remaining bullets: ");  
         Serial.println(bullets);
-        buzzerfun(2);
-        totalbullets++;
+        buzzerfun(2);                         //shooting makes the gun give a short beeb
+        totalbullets++;                       //everytime this function is run, the total amount of bullets goes up, this is done so that an accuracy can be calculated
       }
     }
+    
+    
     if (irrecv.decode(&results)) { //this code will try to read/decode the incomming  signals, and will also post them in the serial interface.
                                    //this will also call the function to take damage (and to recognise the other gun).
-    
+
+      //this is a part of some example code from the IRremote libary
       Serial.println(resultToSourceCode(&results));
       Serial.println();
       uint16_t * Datass = resultToRawArray(&results);    // Blank line between entries
       decodeData(Datass);
       yield();             // Feed the WDT (again)
-      //String hit = resultToTimingInfo(&results);
+      
     }
-    time_wait--;
+    time_wait--;    //an complete run is fufilled, so the 'inactive' counter goes down 1.
   }
-  delay(200);
-  if (Health <= 0) //this part runs if the health points run out.
+  delay(20);
+  
+  
+  if (Health <= 0)  //this part runs if the health points run out.
   {
-    FastLED.clear();
-    Serial.println("u dead m8");//this is the message you get when you die
+    delay(200);
+    FastLED.clear();              //should trun the led's off
+    Serial.println("u dead m8");  //this is the message you get when you die
     
     FastLED.clear();
     delay(50);
-    leds[0] = CRGB::Red;
+    leds[0] = CRGB::Red; //RGBLEDs should flicker red (altough they do all different kinds of things exept that)
     FastLED.show();
     delay(50);
   }
