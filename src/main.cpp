@@ -32,7 +32,6 @@
 
 #define idd '2'               //Here we define the ID of the 'gun', this shouild be set the same as the number of the 'gun' 
 String idstring = "000010";   //Here we fill in the translated binary string of the ID (1=000001, 2=000010, 3=000011,...)
-const char ID_TOP = '2';
 
 String CFFA = "0001";         //These strings are predifined binary strings for the teams.
 String CGREEN = "0010";       //The strings are here to change the teams, and to compare against incomming messages.
@@ -61,7 +60,7 @@ const uint8_t kTolerancePercentage = kTolerance;  // kTolerance is normally 25%
 const uint16_t kIrLed = 15;  // ESP8266 GPIO pin to use. Recommended: 4 (D2) // using 15 (D8) // this defines the pin used to send the IR signals
 const uint16_t kRecvPin = 14; // pin to receive ir data (D5) // Defines The pin used to receive data
 String ownTeam = "FFA";  //Defines the basic configurgiration
-SSD1306Wire display(0x3c, SDA, SCL); //configures the display (address and i²c) (the SDA = D2,  SCL = D1)
+SSD1306Wire display(0x3c, SDA, SCL); //configures the display (address and iï¿½c) (the SDA = D2,  SCL = D1)
 OLEDDisplayUi ui     ( &display );   
 CRGB leds[NUM_LEDS];
 IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, true);
@@ -180,7 +179,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     snprintf (msg, MSG_BUFFER_SIZE, "%ld#%ld#%ld#%ld", idd, Health, bullets, totalbullets);
     Serial.print("Publish message: ");
     Serial.println(msg);
-    client.publish("1", msg);
+    client.publish("2", msg);
   }
 
                                   //If the topic is the same as its own ID, the message is regarded as a configuration. The esp will configure its stelf to the given parameters.
@@ -328,7 +327,7 @@ void setup() {
   irsend.begin();                         // starts initialises the IRsend libary
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);       //initialises the serial connection (this is used for debugging)
   assert(irutils::lowLevelSanityCheck() == 0);            //this runs a check to confirm correct behaviour of the IR urtils libary (part of the greater IR remote lib)
-  FastLED.addLeds<WS2812B, ledPin, RGB>(leds, NUM_LEDS);  //configures the RGB LEDs , the type , the number, and the pin
+  FastLED.addLeds<WS2812B, ledPin, GRB>(leds, NUM_LEDS);  //configures the RGB LEDs , the type , the number, and the pin
   
   leds[1] = CRGB::Purple;                 // sets the default values of the 2 LED's
   leds[0] = CRGB::Green;
@@ -373,7 +372,7 @@ void reconnect() {
   while ((!client.connected())and(!timeout)) { //tries connection for a few times where after it stops for serverles operation.
     Serial.print("Attempting MQTT connection...");
     // Replace the client ID with 'any' chosen string.
-    String clientId = "ESP8266Client-01";
+    String clientId = "ESP8266Client-02";
     // Attempt to connect
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
@@ -477,6 +476,7 @@ String ChangeTeams(int teams){
       ownTeam.concat("FFA");
       break;
   }
+  delay(60);
   return temp;                  // returns the 'temp' string
 }
 
@@ -656,7 +656,7 @@ void decodeData(uint16_t * Datass){
     Serial.println(temp);
     
     // here we compare the team of the shooter, and the team of this esp 
-    if (((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) and (temp != FFA)) //here the code checks if the team is valid, and not ffa(because of the different rules)
+    if ((temp == Blue) or (temp == Red) or (temp == Green) or (temp == White)) //here the code checks if the team is valid, and not ffa(because of the different rules)
     {
       if ((temp != eigenteam) and (eigenteam != FFA)){ //if the team id is valid, and not ffa, amd your team id isn't the same or FFA, the get damage function is called
         get_damage(damage); //passes the damage data to the get_damage function
@@ -847,8 +847,7 @@ void changeGuns (){   // function that changes the gun type, it uses the switch 
           
   default: //stops function if no valid team id is given
     break;
-  }
-  
+  }  
 }
 
 
@@ -874,6 +873,7 @@ void loop() {
       Serial.println(bullets);
       Serial.println(analogRead(Reload_Button));
       time_wait = 40;                       // a preset time to wait (this is purly artificial waithing, this way you can cannot spam actions (appart for reloading))
+      
     }
     
     
@@ -908,6 +908,8 @@ void loop() {
         Serial.print("Remaining bullets: ");
         Serial.println(bullets);                
         buzzerfun(2);                           //the gun gives a short beeb when fired.
+        time_wait = (100/(bullet_type*3))*20;
+        
       }
     }
     
@@ -930,7 +932,7 @@ void loop() {
       Serial.print("team: ");
       Serial.println(eigenteam);  //a bunch of debugging stuff 
       
-      time_wait = 5;              // to prevent accidental double presses.
+      time_wait = 30;              // to prevent accidental double presses.
       
       
     }
@@ -946,7 +948,8 @@ void loop() {
       Serial.println(guns);        
       Serial.print("Team: ");
       Serial.println(eigenteam);
-      time_wait = 5;               //here to prevent accidental spam clicking
+      time_wait = 30;               //here to prevent accidental spam clicking
+      
     }    
     
     
@@ -960,7 +963,7 @@ void loop() {
       decodeData(Datass);
       yield();             // Feed the WDT (again)  
     }
-    time_wait--;           // the time waits are in actuality a few loop runs that some functions do not react.
+              // the time waits are in actuality a few loop runs that some functions do not react.
   }
   
   
@@ -972,6 +975,8 @@ void loop() {
       Serial.print("reload gun: ");         // some debugg/testing features
       Serial.println(bullets);
       Serial.println(analogRead(Reload_Button));
+      time_wait = 50;
+      
     }
     
     
@@ -1007,6 +1012,8 @@ void loop() {
         Serial.println(bullets);
         buzzerfun(2);                         //shooting makes the gun give a short beeb
         totalbullets++;                       //everytime this function is run, the total amount of bullets goes up, this is done so that an accuracy can be calculated
+        time_wait = (100/(bullet_type*3))*20;
+        
       }
     }
     
@@ -1022,9 +1029,9 @@ void loop() {
       yield();             // Feed the WDT (again)
       
     }
-    time_wait--;    //an complete run is fufilled, so the 'inactive' counter goes down 1.
+        //an complete run is fufilled, so the 'inactive' counter goes down 1.
   }
-  delay(20);
+  
   
   
   if (Health <= 0)  //this part runs if the health points run out.
@@ -1037,6 +1044,9 @@ void loop() {
     delay(50);
     leds[0] = CRGB::Red; //RGBLEDs should flicker red (altough they do all different kinds of things exept that)
     FastLED.show();
-    delay(50);
+    
   }
+  time_wait--;
+  delay(200);
+  Serial.println("this is a loop");
 }
