@@ -1,6 +1,6 @@
 # **LaserTag_esp8266**
 ## **instalation**
-To use this project, we recommend using the provided schema: ![a picture detailing the shematics](https://github.com/MyrddinoptRoodt/LaserTag_esp8266/blob/main/schematics%20of%20lazer%20gun%20MK4.png?raw=true)
+To use this project, we recommend using the provided schema: ![a picture detailing the shematics](https://github.com/MyrddinoptRoodt/LaserTag_esp8266/blob/Version1/schemas%20and%20photos/schematics%20of%20lazer%20gun%20MK4.png?raw=true)
 ### **requirements (hardware):**
 **Here we use:**
 - 1 raspberry pi 4b (optional: for dashboard and mqtt server)
