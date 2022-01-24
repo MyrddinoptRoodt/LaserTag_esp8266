@@ -179,7 +179,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     snprintf (msg, MSG_BUFFER_SIZE, "%ld#%ld#%ld#%ld", idd, Health, bullets, totalbullets);
     Serial.print("Publish message: ");
     Serial.println(msg);
-    client.publish("2", msg);
+    client.publish("2", msg);     //Change the "2" to the correct ID of the ESP (this is important for communication with the server)
   }
 
                                   //If the topic is the same as its own ID, the message is regarded as a configuration. The esp will configure its stelf to the given parameters.
