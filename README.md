@@ -27,7 +27,7 @@ an aditional switch between the transisor and the D3 pin is required: at boot th
 
 
 ### **requirements (software):**
-Make shure you have visual studio code installed.
+Make sure you have visual studio code installed.
 Install the platform IO extention into visual studio code.
 
 1. clone the repo to a chosen folder
